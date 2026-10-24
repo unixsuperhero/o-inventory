@@ -210,7 +210,9 @@ func (t *Tool) DiffCommand(words []string, jsonl, all bool) error {
 	return nil
 }
 
-// changeRowLine is a change row; the changelog adds its line (changelog.go).
+// changeRowLine is a change row with its changelog line (unfolded).
 func (t *Tool) changeRowLine(stamp string, c Change, cur, prev []Row) Row {
-	return changeRow(stamp, c)
+	r := changeRow(stamp, c)
+	r.set("line", t.newView(prev, cur, nil).line(c))
+	return r
 }

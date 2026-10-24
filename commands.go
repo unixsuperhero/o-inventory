@@ -89,5 +89,18 @@ func (t *Tool) commands() []oden.Command {
 			}
 			return t.DiffCommand(f.words, f.bools["jsonl"], f.bools["all"])
 		}},
+		{Name: "changelog", Summary: "merge the snapshots' entries into ~/hub/CHANGELOG.md (--repo X prints one repo's; --write-repos also each repo's CHANGELOG.md; --commit commits the hub's; --quiet)", Run: func(ctx context.Context, args []string) error {
+			f, err := parseFlags("changelog", args, []string{"write-repos", "commit", "quiet"}, []string{"repo"})
+			if err != nil {
+				return err
+			}
+			return t.Changelog(ctx, ChangelogOptions{Repo: f.values["repo"], WriteRepos: f.bools["write-repos"], Commit: f.bools["commit"], Quiet: f.bools["quiet"]})
+		}},
+		{Name: "repos", Summary: "the family repos (" + "$XDG_CONFIG_HOME/o-inventory/repos.json, seeded from ~/hub/o and ochazuke, oden, matomeru on first use)", Run: func(ctx context.Context, args []string) error {
+			if _, err := parseFlags("repos", args, nil, nil); err != nil {
+				return err
+			}
+			return t.ReposCommand()
+		}},
 	}
 }
