@@ -109,5 +109,11 @@ func (t *Tool) commands() []oden.Command {
 			}
 			return t.Check(ctx, f.bools["jsonl"])
 		}},
+		{Name: "hook", Summary: "hook install [REPO|--all]: the post-commit hook that snapshots after a commit touching *.go, go.mod, stories/ or a catalog golden (idempotent; appends to an existing hook)", Run: func(ctx context.Context, args []string) error {
+			return t.HookCommand(args)
+		}},
+		{Name: "daily", Summary: "daily install: write the launchd agent that snapshots and writes the changelogs daily; prints it and the launchctl load command (never loads it)", Run: func(ctx context.Context, args []string) error {
+			return t.DailyCommand(args)
+		}},
 	}
 }

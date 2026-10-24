@@ -38,7 +38,7 @@ type Tool struct {
 	Stdin          io.Reader
 	Stdout, Stderr io.Writer
 	Env            []string
-	Home           string
+	Home, Cwd      string
 	Prog           string // "o inventory" under o, else "o-inventory"; messages only
 
 	Now func() time.Time // time.Now unless a test sets the clock
@@ -49,6 +49,10 @@ func main() {
 	if err == nil {
 		home, err = filepath.Abs(home)
 	}
+	cwd, cwdErr := os.Getwd()
+	if err == nil {
+		err = cwdErr
+	}
 	prog := "o-inventory"
 	if parent := os.Getenv(oden.EnvParent); parent != "" {
 		prog = parent + " inventory"
@@ -56,7 +60,7 @@ func main() {
 	if err != nil {
 		os.Exit(oden.Report(os.Stderr, prog, err))
 	}
-	t := &Tool{Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, Env: os.Environ(), Home: home, Prog: prog, Now: time.Now}
+	t := &Tool{Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, Env: os.Environ(), Home: home, Cwd: cwd, Prog: prog, Now: time.Now}
 	os.Exit(oden.Report(os.Stderr, t.Prog, t.Main(context.Background(), os.Args[1:])))
 }
 
