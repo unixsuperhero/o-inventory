@@ -62,3 +62,37 @@ func TestParseFlagsInAnyOrder(t *testing.T) {
 		t.Fatal("unknown option accepted")
 	}
 }
+
+func TestHeadersStayPutWhenALaterSnapshotSharesTheMinute(t *testing.T) {
+	f := newFixture(t)
+	f.mustRun("snapshot")
+	f.mustRun("changelog")
+	f.tool("o-alpha", alphaCatalog("grep"))
+	f.clock = f.clock.Add(30e9) // the same minute
+	f.mustRun("snapshot")
+	if out := f.mustRun("changelog"); out != "~/hub/CHANGELOG.md: 2 entries, 1 new\n" {
+		t.Fatalf("changelog said %q", out)
+	}
+	data, _ := os.ReadFile(filepath.Join(f.home, "hub", "CHANGELOG.md"))
+	if strings.Count(string(data), "\n## ") != 2 || !strings.Contains(string(data), "\n## 2026-10-24 20:10:30\n") || !strings.Contains(string(data), "\n## 2026-10-24 20:10\n") {
+		t.Fatalf("headers:\n%s", data)
+	}
+}
+
+func TestDuplicateKeyIDsDoNotDependOnCatalogOrder(t *testing.T) {
+	a := `{"noun":"app","mode":"normal","keys":"q","request":{"noun":"app","verb":"quit"}}`
+	b := `{"noun":"app","mode":"normal","keys":"q","request":{"noun":"app","verb":"stop"}}`
+	cat := func(x, y string) string {
+		return `{"schema":1,"name":"o-alpha","version":"1","nouns":[],"bindings":[` + x + `,` + y + `],"pages":[]}`
+	}
+	var got []string
+	for _, c := range []string{cat(a, b), cat(b, a)} {
+		f := newFixture(t)
+		f.tool("o-alpha", c)
+		f.mustRun("snapshot")
+		got = append(got, byID(f.latest())["binding:ochazuke/normal/app/q#2"].Str("request"))
+	}
+	if got[0] != got[1] || got[0] == "" {
+		t.Fatalf("q#2 is %v", got)
+	}
+}

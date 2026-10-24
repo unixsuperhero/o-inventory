@@ -188,13 +188,14 @@ func (t *Tool) hubLinks() map[string]string {
 type Collection struct {
 	Rows     []Row
 	Warnings []string
+	Catalogs map[string]*ocli.CatalogDoc // by tool name, for check
 }
 
 // Collect reads every source into rows (not yet sorted): tools on PATH and
 // their catalogs, nabe's registry, o-proj's projects and the hub links, and
 // o-story's stories and mode edges when it answers a catalog with a state.
 func (t *Tool) Collect(ctx context.Context) Collection {
-	var c Collection
+	c := Collection{Catalogs: map[string]*ocli.CatalogDoc{}}
 	warn := func(format string, args ...any) { c.Warnings = append(c.Warnings, fmt.Sprintf(format, args...)) }
 	ids := map[string]bool{}
 	add := func(r Row) bool {
@@ -257,6 +258,7 @@ func (t *Tool) Collect(ctx context.Context) Collection {
 		row.set("version", doc.Version).set("state", doc.State)
 		add(row)
 		docs[pt.Name] = &doc
+		c.Catalogs[pt.Name] = &doc
 	}
 	for _, pt := range tools {
 		if doc := docs[pt.Name]; doc != nil {
@@ -391,7 +393,7 @@ func catalogRows(tool string, doc *ocli.CatalogDoc, mounted map[string]bool, add
 		}
 	}
 	seen := map[string]int{}
-	for _, b := range doc.Bindings {
+	for _, b := range sortedBindings(doc.Bindings) {
 		if mounted[b.Noun] {
 			continue
 		}
@@ -457,4 +459,25 @@ func storyRows(out []byte, add func(Row) bool) {
 		}
 		add(row)
 	}
+}
+
+// sortedBindings are bindings in the order of their JSON: a catalog's rows
+// within a mode are not in a stable order, and a duplicate key's #N id
+// must not depend on it.
+func sortedBindings(in []ochazuke.Binding) []ochazuke.Binding {
+	type keyed struct {
+		key string
+		b   ochazuke.Binding
+	}
+	ks := make([]keyed, len(in))
+	for i, b := range in {
+		j, _ := json.Marshal(b)
+		ks[i] = keyed{string(j), b}
+	}
+	sort.SliceStable(ks, func(i, j int) bool { return ks[i].key < ks[j].key })
+	out := make([]ochazuke.Binding, len(in))
+	for i, k := range ks {
+		out[i] = k.b
+	}
+	return out
 }

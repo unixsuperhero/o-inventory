@@ -501,10 +501,7 @@ func (t *Tool) Entries(repo string) ([]ChangelogEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	minute := map[string]int{}
-	for _, s := range stamps {
-		minute[stampTime(s).Format("2006-01-02 15:04")]++
-	}
+	minutes := map[string]bool{} // minutes an earlier snapshot's header took
 	var entries []ChangelogEntry
 	var prev []Row
 	for i, stamp := range stamps {
@@ -548,10 +545,14 @@ func (t *Tool) Entries(repo string) ([]ChangelogEntry, error) {
 			sections["Commits"] = append(fixed, plain...)
 		}
 		prev = cur
-		header := "## " + stampTime(stamp).Format("2006-01-02 15:04")
-		if minute[stampTime(stamp).Format("2006-01-02 15:04")] > 1 {
+		// The header is the minute; a later snapshot in a minute already
+		// taken adds seconds, so no header changes once written.
+		minute := stampTime(stamp).Format("2006-01-02 15:04")
+		header := "## " + minute
+		if minutes[minute] {
 			header = "## " + stampTime(stamp).Format("2006-01-02 15:04:05")
 		}
+		minutes[minute] = true
 		var b strings.Builder
 		b.WriteString(header + "\n")
 		titles := []string{}

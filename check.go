@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	ocli "github.com/unixsuperhero/ochazuke/cli"
 	"os"
 	"path/filepath"
 	"sort"
-	"time"
+	"strings"
 
 	"github.com/unixsuperhero/oden"
 )
@@ -26,6 +27,7 @@ type Problem struct {
 // the post-commit hook.
 func (t *Tool) Problems(ctx context.Context) ([]Problem, error) {
 	c := t.Collect(ctx)
+	reg, _, _ := t.registry()
 	var out []Problem
 	add := func(kind, subject, format string, args ...any) {
 		out = append(out, Problem{Kind: kind, Subject: subject, Detail: fmt.Sprintf(format, args...)})
@@ -52,13 +54,11 @@ func (t *Tool) Problems(ctx context.Context) ([]Problem, error) {
 				continue
 			}
 			tool := toolByBin[resolved]
-			if tool != nil && tool["catalog"] == true && tool.Str("version") != r.Str("catalogVersion") {
-				add("stale-catalog", r.ID(), "registered catalog %s; %s answers %s", orNone(r.Str("catalogVersion")), tool.Str("name"), tool.Str("version"))
+			if tool == nil || tool["catalog"] != true {
 				continue
 			}
-			registered, err1 := time.Parse(time.RFC3339, r.Str("registeredAt"))
-			if info, err2 := os.Stat(resolved); err1 == nil && err2 == nil && info.ModTime().Truncate(time.Second).After(registered) { // registeredAt has whole seconds
-				add("stale-catalog", r.ID(), "registered %s; %s built %s", registered.UTC().Format(time.RFC3339), r.Str("bin"), info.ModTime().UTC().Format(time.RFC3339))
+			if diff := catalogDrift(reg[r.Str("name")].Catalog, c.Catalogs[tool.Str("name")]); diff != "" {
+				add("stale-catalog", r.ID(), "registered catalog differs from what %s answers now: %s (o-nabe extension register %s)", tool.Str("name"), diff, tool.Str("name"))
 			}
 		case "project":
 			trees, _ := r["trees"].([]string)
@@ -126,4 +126,32 @@ func (t *Tool) Check(ctx context.Context, jsonl bool) error {
 		fmt.Fprintln(t.Stderr, plural(len(problems), "problem"))
 	}
 	return &oden.ExitError{Code: 1}
+}
+
+// catalogDrift is how a registered catalog differs from the one its bin
+// answers now, "" when they agree; the version and name are not compared
+// (a rebuild with the same nouns, verbs, bindings and pages is current).
+func catalogDrift(registered, now *ocli.CatalogDoc) string {
+	if registered == nil || now == nil {
+		return ""
+	}
+	var parts []string
+	same := func(a, b any) bool {
+		x, _ := json.Marshal(a)
+		y, _ := json.Marshal(b)
+		return string(x) == string(y)
+	}
+	if !same(registered.Nouns, now.Nouns) {
+		parts = append(parts, fmt.Sprintf("nouns and verbs (%d nouns registered, %d now)", len(registered.Nouns), len(now.Nouns)))
+	}
+	if !same(sortedBindings(registered.Bindings), sortedBindings(now.Bindings)) {
+		parts = append(parts, fmt.Sprintf("bindings (%d registered, %d now)", len(registered.Bindings), len(now.Bindings)))
+	}
+	if !same(registered.Pages, now.Pages) {
+		parts = append(parts, "pages")
+	}
+	if registered.State != now.State {
+		parts = append(parts, fmt.Sprintf("state %s; was %s", orNone(now.State), orNone(registered.State)))
+	}
+	return strings.Join(parts, ", ")
 }
