@@ -150,21 +150,54 @@ func (t *Tool) registry() (map[string]Entry, []string, error) {
 
 // Project is a row of o-proj list (matomeru internal/work Project).
 type Project struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
-	Repo   string `json:"repo"`
-	Origin string `json:"origin"`
-	Trees  []struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Status      string `json:"status"`
+	Repo        string `json:"repo"`
+	Origin      string `json:"origin"`
+	DefaultTree string `json:"default_tree"`
+	Trees       []struct {
 		Kind   string `json:"kind"`
 		Path   string `json:"path"`
 		Branch string `json:"branch"`
 	} `json:"trees"`
 }
 
+// tree is the tree o-proj links from the hub (o-proj projectTree): the
+// default tree, else the first.
+func (p Project) tree() string {
+	if p.DefaultTree != "" {
+		return p.DefaultTree
+	}
+	if len(p.Trees) > 0 {
+		return p.Trees[0].Path
+	}
+	return ""
+}
+
+// HubLinkDir is the directory o-proj links projects from (o-proj
+// DefaultHub): $O_PROJ_HUB, else ~/hub/o.
+func (t *Tool) HubLinkDir() string {
+	if v := t.getenv("O_PROJ_HUB"); v != "" {
+		return v
+	}
+	return filepath.Join(t.Home, "hub", "o")
+}
+
+// sameDir reports whether a and b name the same directory once symlinks
+// are resolved; a path that does not resolve matches nothing.
+func sameDir(a, b string) bool {
+	ra, err := filepath.EvalSymlinks(a)
+	if err != nil {
+		return false
+	}
+	rb, err := filepath.EvalSymlinks(b)
+	return err == nil && ra == rb
+}
+
 // hubLinks are the hub's o/ symlinks: name -> absolute target.
 func (t *Tool) hubLinks() map[string]string {
-	dir := filepath.Join(t.Hub(), "o")
+	dir := t.HubLinkDir()
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil
@@ -296,8 +329,9 @@ func (t *Tool) Collect(ctx context.Context) Collection {
 		add(row)
 	}
 
+	// Projects are the o-proj store's rows only; a hub link counts for the
+	// project it is named after when it resolves to that project's tree.
 	links := t.hubLinks()
-	linked := map[string]bool{}
 	if bin := bins["o-proj"]; bin != "" {
 		out, err := t.run(ctx, bin, "list")
 		var projects []Project
@@ -316,30 +350,17 @@ func (t *Tool) Collect(ctx context.Context) Collection {
 			for _, tr := range p.Trees {
 				trees = append(trees, t.tilde(tr.Path))
 			}
-			if len(trees) > 0 {
-				row["path"] = trees[0]
-				row.set("github", gitHubRemote(p.Trees[0].Path))
+			if tree := p.tree(); tree != "" {
+				row["path"] = t.tilde(tree)
+				row.set("github", gitHubRemote(tree))
 			}
 			row.set("trees", trees)
-			for name, target := range links {
-				if name == p.Name || (len(p.Trees) > 0 && target == p.Trees[0].Path) {
-					row["hubLink"] = true
-					linked[name] = true
-				}
+			if target, ok := links[p.Name]; ok && p.tree() != "" && sameDir(target, p.tree()) {
+				row["hubLink"] = true
 			}
 			if !add(row) {
 				warn("project %q is registered twice; the first is recorded", p.Name)
 			}
-		}
-	}
-	for name, target := range links {
-		if !linked[name] {
-			row := newRow("project", name)
-			row["name"] = name
-			row["path"] = t.tilde(target)
-			row["hubLink"] = true
-			row.set("github", gitHubRemote(target))
-			add(row)
 		}
 	}
 
