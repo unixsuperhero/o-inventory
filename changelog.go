@@ -275,7 +275,7 @@ func (v *view) thing(r Row) string {
 		if keys == "" {
 			keys = "pattern " + r.Str("pattern")
 		}
-		return "`" + keys + "` in " + tool + " " + r.Str("mode")
+		return "`" + keys + "` in " + tool + " " + modeName(r.Str("mode"))
 	case "page":
 		return "page `" + r.Str("page") + "` in " + tool
 	case "host":
@@ -704,4 +704,12 @@ func (t *Tool) Changelog(_ context.Context, o ChangelogOptions) error {
 		}
 	}
 	return nil
+}
+
+// modeName is a binding's mode as a line names it; "" binds in every mode.
+func modeName(mode string) string {
+	if mode == "" {
+		return "every mode"
+	}
+	return mode
 }

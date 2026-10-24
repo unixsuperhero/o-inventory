@@ -61,7 +61,7 @@ func label(r Row) string {
 		if keys == "" {
 			keys = "<" + r.Str("pattern") + ">"
 		}
-		return keys + " in " + tool + " " + r.Str("mode") + " → " + r.Str("request")
+		return keys + " in " + tool + " " + modeName(r.Str("mode")) + " → " + r.Str("request")
 	case "page":
 		return tool + " " + r.Str("page") + ": " + r.Str("title")
 	case "host":

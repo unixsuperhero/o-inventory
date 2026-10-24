@@ -96,3 +96,11 @@ func TestDuplicateKeyIDsDoNotDependOnCatalogOrder(t *testing.T) {
 		t.Fatalf("q#2 is %v", got)
 	}
 }
+
+func TestBindingWithoutAModeIsNamedEveryMode(t *testing.T) {
+	v := (&Tool{}).newView(nil, nil, nil)
+	r := Row{"kind": "binding", "id": "binding:ochazuke//app/ctrl+c", "tool": "ochazuke", "noun": "app", "keys": "ctrl+c", "request": "app.quit"}
+	if got := v.addedText(r); got != "`ctrl+c` in ochazuke every mode, `app.quit`" {
+		t.Fatalf("%q", got)
+	}
+}
