@@ -13,6 +13,10 @@ import (
 type Repo struct {
 	Name string `json:"name"`
 	Path string `json:"path"` // ~ for the home directory
+	// Roots are the tools built from this repo that are roots of their
+	// own (an oden app whose catalog does not carry oden's command noun):
+	// not expected to be reachable through o.
+	Roots []string `json:"roots,omitempty"`
 }
 
 // ReposPath is the repos config: CONFIG/o-inventory/repos.json.
@@ -21,6 +25,11 @@ func (t *Tool) ReposPath() string { return filepath.Join(t.ConfigDir(), "repos.j
 // seededFrameworkRepos are the repos the family is built on, seeded beside
 // the hub's o/ links (which list only the projects o-proj made).
 var seededFrameworkRepos = []string{"ochazuke", "oden", "matomeru"}
+
+// seededRoots are the roots repos.json is seeded with, by repo: mtm is an
+// oden app of its own (o is a second prefix it looks up), but its catalog
+// is ochazuke's and has no command noun to say so.
+var seededRoots = map[string][]string{"matomeru": {"mtm"}}
 
 // Repos is the repos config, written on first use from the hub's o/ links
 // whose target is a repository of its own, plus ~/proj/{ochazuke, oden,
@@ -63,7 +72,7 @@ func (t *Tool) readRepos() (repos []Repo, exists bool, err error) {
 }
 
 // seedRepos are the hub's o/ links that are repositories of their own and
-// ~/proj/{ochazuke, oden, matomeru}, by name.
+// ~/proj/{ochazuke, oden, matomeru}, by name, with their seeded roots.
 func (t *Tool) seedRepos() []Repo {
 	var repos []Repo
 	byPath := map[string]Repo{}
@@ -79,6 +88,7 @@ func (t *Tool) seedRepos() []Repo {
 		}
 	}
 	for _, r := range byPath {
+		r.Roots = seededRoots[r.Name]
 		repos = append(repos, r)
 	}
 	sort.Slice(repos, func(i, j int) bool { return repos[i].Name < repos[j].Name })

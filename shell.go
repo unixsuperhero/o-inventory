@@ -71,6 +71,9 @@ func label(r Row) string {
 		if r["reachable"] == false {
 			s += ", not reachable through o"
 		}
+		if r["root"] == true {
+			s += ", root"
+		}
 		return s
 	case "noun":
 		return tool + " " + noun

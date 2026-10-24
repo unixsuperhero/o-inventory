@@ -15,7 +15,7 @@ o inv repos                             # ~/.config/o-inventory/repos.json
 o inv tool list | o inv verb show --target verb:o-ai/skill.list | o inv state
 ```
 
-Rows (`{kind, id, ...}`, id `<kind>:<path>`): `lib` (oden, ochazuke and every repos.json module no tool is built from: path, commit, dirty, version, goModule), `dep` (a tool's or lib's go.mod on a lib: mode `replace`|`require`, version), `shadow` (a claim an `o` command shadows), `tool` (including `o`; `reachable: false` when `o`'s `command state` does not run it), `noun`, `verb`, `param`, `binding`, `page`, `host`, `project`, `story`, `edge`. Framework nouns are recorded once under `ochazuke`.
+Rows (`{kind, id, ...}`, id `<kind>:<path>`): `lib` (oden, ochazuke and every repos.json module no tool is built from: path, commit, dirty, version, goModule), `dep` (a tool's or lib's go.mod on a lib: mode `replace`|`require`, version), `shadow` (a claim an `o` command shadows), `tool` (including `o`; `root: true` for a root of its own: its catalog has oden's `command` noun, or a repos.json entry's `roots` names it, seeded `"roots": ["mtm"]` on matomeru; `reachable: false` when `o`'s `command state` does not run it and it is no root), `noun`, `verb`, `param`, `binding`, `page`, `host`, `project`, `story`, `edge`. Framework nouns are recorded once under `ochazuke`.
 
 ## Daily job
 

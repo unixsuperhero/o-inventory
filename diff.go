@@ -16,7 +16,7 @@ var compared = map[string][]string{
 	"lib":     {"path", "commit", "dirty", "goModule"},
 	"dep":     {"mode", "version", "replace"},
 	"shadow":  {"winner", "claimKind", "aliasOf"},
-	"tool":    {"bin", "version", "commit", "catalog", "alias", "state", "reachable"},
+	"tool":    {"bin", "version", "commit", "catalog", "alias", "state", "reachable", "root"},
 	"noun":    {"pin", "framework"},
 	"verb":    {"verbKind", "result", "confirm", "repeatable", "rows", "quiet", "positional"},
 	"param":   {"type", "required", "enum", "source", "free"},

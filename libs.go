@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	ocli "github.com/unixsuperhero/ochazuke/cli"
+	"github.com/unixsuperhero/oden"
 )
 
 // Root is the family root bin: its command rows are the roster a tool is
@@ -64,9 +65,39 @@ func (t *Tool) roster(ctx context.Context, bin string, doc *ocli.CatalogDoc, war
 	return m
 }
 
+// markRoots marks each tool that is a root of its own root: true: its
+// catalog has oden's command noun (o, any plain oden app), or repos.json
+// names it in a repo's roots (an ochazuke-backed oden app such as mtm).
+func markRoots(repos []Repo, docs map[string]*ocli.CatalogDoc, tools map[string]Row) {
+	named := map[string]bool{}
+	for _, r := range repos {
+		for _, name := range r.Roots {
+			named[name] = true
+		}
+	}
+	for name, r := range tools {
+		if named[name] || hasNoun(docs[name], oden.CommandNoun) {
+			r["root"] = true
+		}
+	}
+}
+
+func hasNoun(doc *ocli.CatalogDoc, noun string) bool {
+	if doc == nil {
+		return false
+	}
+	for _, n := range doc.Nouns {
+		if n.Name == noun {
+			return true
+		}
+	}
+	return false
+}
+
 // markReachable marks each tool o does not run (no o command whose
-// executable is the tool's bin) reachable: false, and adds a shadow row per
-// claim an o command shadows.
+// executable is the tool's bin) reachable: false, a root excepted (it is
+// not expected to be o's command), and adds a shadow row per claim an o
+// command shadows.
 func (t *Tool) markReachable(roster map[string]rosterEntry, tools map[string]Row, add func(Row) bool) {
 	if roster == nil {
 		return
@@ -78,7 +109,7 @@ func (t *Tool) markReachable(roster map[string]rosterEntry, tools map[string]Row
 		}
 	}
 	for name, r := range tools {
-		if name != Root && !runs[r.Str("bin")] {
+		if name != Root && r["root"] != true && !runs[r.Str("bin")] {
 			r["reachable"] = false
 		}
 	}

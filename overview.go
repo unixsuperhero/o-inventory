@@ -11,11 +11,11 @@ import (
 )
 
 // Overview is the latest snapshot as one tree: the libraries and who
-// builds on them, the root o and what it runs, the tools, the nabe hosts
-// and the projects.
+// builds on them, the roots (o and what it runs, then every other root:
+// true tool), the tools, the nabe hosts and the projects.
 type Overview struct {
 	Libs     []OverviewLib     `json:"libs"`
-	Root     *OverviewRoot     `json:"root,omitempty"`
+	Root     []OverviewRoot    `json:"root"`
 	Tools    []OverviewTool    `json:"tools"`
 	Hosts    []OverviewHost    `json:"hosts"`
 	Projects []OverviewProject `json:"projects"`
@@ -31,15 +31,21 @@ type OverviewLib struct {
 	Deps    []string `json:"deps"`
 }
 
-// OverviewRoot is o: its bin and the commands it runs (o-WORD tools, an
-// alias as "tui (o-tui → o-nabe)").
+// OverviewRoot is a root: o with the commands it runs (o-WORD tools, an
+// alias as "tui (o-tui → o-nabe)"), or another root (mtm) with its source,
+// counts and hosts.
 type OverviewRoot struct {
 	Name     string   `json:"name"`
 	Bin      string   `json:"bin"`
 	Commands []string `json:"commands"`
+	Repo     string   `json:"repo,omitempty"`
+	Commit   string   `json:"commit,omitempty"`
+	Nouns    int      `json:"nouns"`
+	Verbs    int      `json:"verbs"`
+	Hosts    []string `json:"hosts"`
 }
 
-// OverviewTool is one tool on PATH but o.
+// OverviewTool is one tool on PATH but the roots.
 type OverviewTool struct {
 	Name      string   `json:"name"`
 	Repo      string   `json:"repo,omitempty"`
@@ -87,7 +93,7 @@ func (t *Tool) Overview() (Overview, error) {
 }
 
 func (t *Tool) overviewOf(rows []Row) Overview {
-	ov := Overview{Libs: []OverviewLib{}, Tools: []OverviewTool{}, Hosts: []OverviewHost{}, Projects: []OverviewProject{}}
+	ov := Overview{Libs: []OverviewLib{}, Root: []OverviewRoot{}, Tools: []OverviewTool{}, Hosts: []OverviewHost{}, Projects: []OverviewProject{}}
 	byKind := map[string][]Row{}
 	for _, r := range rows {
 		byKind[r.Kind()] = append(byKind[r.Kind()], r)
@@ -159,11 +165,20 @@ func (t *Tool) overviewOf(rows []Row) Overview {
 
 	for _, r := range byKind["tool"] {
 		name := r.Str("name")
-		if name == Root {
-			root := &OverviewRoot{Name: name, Bin: r.Str("bin"), Commands: []string{}}
+		c := counts[name]
+		if name == Root || r["root"] == true {
+			root := OverviewRoot{Name: name, Bin: r.Str("bin"), Commands: []string{}, Hosts: hostsOf[r.Str("bin")]}
+			if root.Hosts == nil {
+				root.Hosts = []string{}
+			}
+			if name != Root {
+				root.Repo, root.Commit, root.Nouns, root.Verbs = r.Str("repo"), r.Str("commit"), c[0], c[1]
+				ov.Root = append(ov.Root, root)
+				continue
+			}
 			for _, o := range byKind["tool"] {
 				word, ok := strings.CutPrefix(o.Str("name"), Root+"-")
-				if !ok || o["reachable"] == false {
+				if !ok || o["reachable"] == false || o["root"] == true {
 					continue
 				}
 				if a := o.Str("alias"); a != "" {
@@ -171,10 +186,9 @@ func (t *Tool) overviewOf(rows []Row) Overview {
 				}
 				root.Commands = append(root.Commands, word)
 			}
-			ov.Root = root
+			ov.Root = append([]OverviewRoot{root}, ov.Root...)
 			continue
 		}
-		c := counts[name]
 		ot := OverviewTool{Name: name, Repo: r.Str("repo"), Commit: r.Str("commit"), Nouns: c[0], Verbs: c[1], Hosts: hostsOf[r.Str("bin")],
 			Alias: r.Str("alias"), Catalog: r["catalog"] == true, Reachable: r["reachable"] != false}
 		if ot.Hosts == nil {
@@ -224,12 +238,22 @@ func (ov Overview) Text() string {
 	}
 	section("libs", len(ov.Libs), lines)
 	lines = nil
-	n := 0
-	if r := ov.Root; r != nil {
-		n = 1
-		lines = append(lines, []string{r.Name, r.Bin, "→ " + strings.Join(r.Commands, ", ")})
+	for _, r := range ov.Root {
+		if r.Name == Root {
+			lines = append(lines, []string{r.Name, r.Bin, "→ " + strings.Join(r.Commands, ", ")})
+			continue
+		}
+		cols := []string{r.Name, r.Bin}
+		if src := strings.TrimSpace(r.Repo + " " + r.Commit); src != "" {
+			cols = append(cols, src)
+		}
+		cols = append(cols, plural(r.Nouns, "noun")+" "+plural(r.Verbs, "verb"))
+		if len(r.Hosts) > 0 {
+			cols = append(cols, "host: "+strings.Join(r.Hosts, ", "))
+		}
+		lines = append(lines, cols)
 	}
-	section("root", n, lines)
+	section("root", len(ov.Root), lines)
 	lines = nil
 	for _, tl := range ov.Tools {
 		src := strings.TrimSpace(tl.Repo + " " + tl.Commit)
@@ -252,7 +276,7 @@ func (ov Overview) Text() string {
 	}
 	section("tools", len(ov.Tools), lines)
 	lines = nil
-	n = 0
+	n := 0
 	for _, h := range ov.Hosts {
 		var exts []string
 		for _, e := range h.Extensions {

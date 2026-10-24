@@ -270,8 +270,12 @@ func (t *Tool) Collect(ctx context.Context) Collection {
 			catalogRows(pt.Name, doc, mounted, add, func(id string) bool { return ids[id] })
 		}
 	}
-	// o's command rows are the roster: a tool o does not run is
-	// reachable: false; a claim an o command shadows is a shadow row.
+	// A root (its catalog's command noun, or repos.json's roots) is
+	// root: true; o's command rows are the roster: a tool o does not run
+	// and is no root is reachable: false; a claim an o command shadows is a
+	// shadow row.
+	knownRepos, _ := t.knownRepos() // libRows warns on an error
+	markRoots(knownRepos, docs, toolRows)
 	t.markReachable(t.roster(ctx, bins[Root], docs[Root], warn), toolRows, add)
 	t.libRows(toolList, add, warn)
 

@@ -90,13 +90,16 @@ func (f *fixture) root(listed ...string) {
 	}
 }
 
-// family is the fixture plus the libs, o-cons, mtm (not o-*) and o
-// listing o-alpha, o-proj and o-cons.
+// family is the fixture plus the libs, o-cons, o listing o-alpha, o-proj
+// and o-cons, mtm (a root by the seeded repos.json roots), o-kit (a root by
+// its catalog's command noun, unlisted) and o-plain (unlisted, no root).
 func familyFixture(t *testing.T, built time.Time) *fixture {
 	f := newFixture(t)
 	f.libs()
 	f.consumer(built)
 	f.tool("mtm", projCatalog)
+	f.tool("o-kit", `{"schema":1,"name":"kit","version":"v1","nouns":[{"name":"command","verbs":[{"name":"list","kind":"application","rows":"command"}]}],"bindings":[],"pages":[]}`)
+	f.tool("o-plain", projCatalog)
 	f.root("alpha", "cons", "proj")
 	return f
 }
@@ -111,11 +114,19 @@ func TestSnapshotRecordsRootLibsDepsAndReachability(t *testing.T) {
 	if _, ok := m["noun:o/command"]; !ok {
 		t.Fatal("o's command noun is missing")
 	}
-	if r := m["tool:mtm"]; r["reachable"] != false {
-		t.Fatalf("mtm %v", r)
+	for _, id := range []string{"tool:o", "tool:mtm", "tool:o-kit"} {
+		if r := m[id]; r["root"] != true || r["reachable"] != nil {
+			t.Fatalf("root %s %v", id, r)
+		}
+	}
+	if r := m["tool:o-plain"]; r["reachable"] != false || r["root"] != nil {
+		t.Fatalf("plain %v", r)
 	}
 	for _, id := range []string{"tool:o-alpha", "tool:o-proj", "tool:o-cons"} {
 		if _, ok := m[id]["reachable"]; ok {
+			t.Fatalf("%s %v", id, m[id])
+		}
+		if _, ok := m[id]["root"]; ok {
 			t.Fatalf("%s %v", id, m[id])
 		}
 	}
@@ -182,10 +193,15 @@ func TestCheckStaleBuildAndUnreachable(t *testing.T) {
 	out, _ := f.run("check", "--jsonl")
 	for _, want := range []string{
 		`{"kind":"stale-build","subject":"tool:o-cons","detail":"~/bin/o-cons built 2026-10-24T18:00:00Z, before oden `,
-		`{"kind":"unreachable","subject":"tool:mtm","detail":"o does not list mtm (only o-* executables are o's commands)"}`,
+		`{"kind":"unreachable","subject":"tool:o-plain","detail":"o does not list o-plain (only o-* executables are o's commands)"}`,
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("check lacks %q:\n%s", want, out)
+		}
+	}
+	for _, root := range []string{"tool:o", "tool:mtm", "tool:o-kit"} {
+		if strings.Contains(out, `"subject":"`+root+`"`) {
+			t.Fatalf("root %s is a problem:\n%s", root, out)
 		}
 	}
 	if strings.Contains(out, "before ochazuke") {
@@ -210,9 +226,9 @@ func TestOverviewTreeOfTheLatestSnapshot(t *testing.T) {
 	for _, want := range []string{
 		"libs (2)\n",
 		"  oden      " + oden + "  dirty: no  deps: o-cons, ochazuke\n",
-		"root (1)\n  o  ~/bin/o  → alpha, cons, proj\n",
+		"root (3)\n  o      ~/bin/o      → alpha, cons, proj\n  mtm    ~/bin/mtm    1 noun 1 verb\n  o-kit  ~/bin/o-kit  1 noun 1 verb\n",
 		"tools (4)\n",
-		"  mtm  ",
+		"  o-plain  ",
 		"not reachable through o",
 		"  o-alpha  ",
 		"1 noun 2 verbs  host: nabe (alpha)\n",
@@ -227,7 +243,7 @@ func TestOverviewTreeOfTheLatestSnapshot(t *testing.T) {
 	if err := json.Unmarshal([]byte(f.mustRun("overview", "--json")), &ov); err != nil {
 		t.Fatal(err)
 	}
-	if len(ov.Libs) != 2 || ov.Root == nil || ov.Root.Bin != "~/bin/o" || len(ov.Tools) != 4 || len(ov.Projects) != 2 || ov.Projects[0].Name != "alpha" {
+	if len(ov.Libs) != 2 || len(ov.Root) != 3 || ov.Root[0].Bin != "~/bin/o" || ov.Root[1].Name != "mtm" || ov.Root[2].Name != "o-kit" || len(ov.Tools) != 4 || len(ov.Projects) != 2 || ov.Projects[0].Name != "alpha" {
 		t.Fatalf("tree %+v", ov)
 	}
 }
