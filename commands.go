@@ -102,5 +102,12 @@ func (t *Tool) commands() []oden.Command {
 			}
 			return t.ReposCommand()
 		}},
+		{Name: "check", Summary: "drift: tools without a catalog, stale or missing nabe hosts, missing project trees, repos without the hook (--jsonl); exit 1 when anything is wrong", Run: func(ctx context.Context, args []string) error {
+			f, err := parseFlags("check", args, []string{"jsonl"}, nil)
+			if err != nil {
+				return err
+			}
+			return t.Check(ctx, f.bools["jsonl"])
+		}},
 	}
 }
