@@ -122,6 +122,7 @@ func (t *Tool) HookCommand(args []string) error {
 		return err
 	}
 	var targets []Repo
+	added := false // a directory not in repos.json joins it once hooked
 	switch {
 	case f.bools["all"]:
 		targets = repos
@@ -137,14 +138,23 @@ func (t *Tool) HookCommand(args []string) error {
 			if err != nil {
 				return err
 			}
-			targets = append(targets, Repo{Name: filepath.Base(dir), Path: dir})
+			targets = append(targets, Repo{Name: filepath.Base(dir), Path: t.tilde(dir)})
+			added = true
 		}
 	default:
 		top, err := git(t.Cwd, "rev-parse", "--show-toplevel")
 		if err != nil {
 			return err
 		}
-		targets = append(targets, Repo{Name: filepath.Base(top), Path: top})
+		targets = append(targets, Repo{Name: filepath.Base(top), Path: t.tilde(top)})
+		added = true
+	}
+	if added {
+		for _, r := range repos {
+			if t.untilde(r.Path) == t.untilde(targets[0].Path) {
+				added = false
+			}
+		}
 	}
 	var failed []string
 	for _, r := range targets {
@@ -158,6 +168,12 @@ func (t *Tool) HookCommand(args []string) error {
 	}
 	if len(failed) > 0 {
 		return fmt.Errorf("hook install failed in %s", strings.Join(failed, ", "))
+	}
+	if added {
+		if err := t.saveRepos(append(repos, targets[0])); err != nil {
+			return err
+		}
+		fmt.Fprintf(t.Stdout, "%s: added to %s\n", targets[0].Name, t.tilde(t.ReposPath()))
 	}
 	return nil
 }

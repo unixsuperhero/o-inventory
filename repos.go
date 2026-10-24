@@ -52,14 +52,21 @@ func (t *Tool) Repos() (repos []Repo, seeded bool, err error) {
 		repos = append(repos, r)
 	}
 	sort.Slice(repos, func(i, j int) bool { return repos[i].Name < repos[j].Name })
-	out, err := json.MarshalIndent(repos, "", "  ")
-	if err != nil {
-		return nil, false, err
-	}
-	if err := writeFile(t.ReposPath(), append(out, '\n')); err != nil {
+	if err := t.saveRepos(repos); err != nil {
 		return nil, false, err
 	}
 	return repos, true, nil
+}
+
+// saveRepos writes the repos config, sorted by name.
+func (t *Tool) saveRepos(repos []Repo) error {
+	repos = append([]Repo(nil), repos...)
+	sort.Slice(repos, func(i, j int) bool { return repos[i].Name < repos[j].Name })
+	out, err := json.MarshalIndent(repos, "", "  ")
+	if err != nil {
+		return err
+	}
+	return writeFile(t.ReposPath(), append(out, '\n'))
 }
 
 // isRepoRoot reports whether dir is the top of a git repository of its

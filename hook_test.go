@@ -113,3 +113,19 @@ func TestDailyInstallWritesThePlistAndNeverLoadsIt(t *testing.T) {
 		t.Fatalf("output:\n%s", out)
 	}
 }
+
+func TestHookInstallByPathJoinsReposOnce(t *testing.T) {
+	f := newFixture(t)
+	f.mustRun("repos")
+	repo := filepath.Join(f.home, "proj", "beta")
+	gitRepo(t, repo, map[string]string{"feat: one": "2026-10-24T19:00:00Z"})
+	if out := f.mustRun("hook", "install", repo); out != "beta: created ~/proj/beta/.git/hooks/post-commit\nbeta: added to ~/.config/o-inventory/repos.json\n" {
+		t.Fatalf("install %q", out)
+	}
+	if out := f.mustRun("hook", "install", repo); out != "beta: unchanged ~/proj/beta/.git/hooks/post-commit\n" {
+		t.Fatalf("again %q", out)
+	}
+	if out := f.mustRun("repos"); strings.Count(out, `"beta"`) != 1 || !strings.Contains(out, `"~/proj/beta"`) {
+		t.Fatalf("repos %s", out)
+	}
+}
