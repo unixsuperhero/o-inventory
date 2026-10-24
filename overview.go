@@ -216,7 +216,11 @@ func (ov Overview) Text() string {
 	}
 	var lines [][]string
 	for _, l := range ov.Libs {
-		lines = append(lines, []string{l.Name, l.Commit, "dirty: " + yesNo(l.Dirty), "deps: " + strings.Join(l.Deps, ", ")})
+		deps := strings.Join(l.Deps, ", ")
+		if deps == "" {
+			deps = "none"
+		}
+		lines = append(lines, []string{l.Name, l.Commit, "dirty: " + yesNo(l.Dirty), "deps: " + deps})
 	}
 	section("libs", len(ov.Libs), lines)
 	lines = nil
