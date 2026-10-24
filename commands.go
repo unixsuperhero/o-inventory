@@ -82,5 +82,12 @@ func (t *Tool) commands() []oden.Command {
 			_, err = t.Snapshot(ctx, f.bools["commit"], f.bools["quiet"])
 			return err
 		}},
+		{Name: "diff", Summary: "the changes between snapshots A and B (stamps, latest or paths; default the previous and the latest): readable, or --jsonl change rows; --all compares every field", Run: func(ctx context.Context, args []string) error {
+			f, err := parseFlags("diff", args, []string{"jsonl", "all"}, nil)
+			if err != nil {
+				return err
+			}
+			return t.DiffCommand(f.words, f.bools["jsonl"], f.bools["all"])
+		}},
 	}
 }

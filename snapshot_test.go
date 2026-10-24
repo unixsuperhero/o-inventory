@@ -101,3 +101,28 @@ func TestSnapshotSkipsSymlinkedDuplicateAndMountedNouns(t *testing.T) {
 		t.Fatal("the host's own noun is missing")
 	}
 }
+
+func TestDiffAChangedVerbAndAnAddedOne(t *testing.T) {
+	f := newFixture(t)
+	f.mustRun("snapshot")
+	if out := f.mustRun("diff"); strings.Count(out, "\n") != len(f.latest()) || !strings.Contains(out, "+ tool:o-alpha\n") {
+		t.Fatalf("first diff (everything added):\n%s", out)
+	}
+	// skill list's rows change, skill grep is new, a description changes.
+	cat := strings.Replace(alphaCatalog("grep"), `"rows":"skill"`, `"rows":"entry","description":"new words"`, 1)
+	f.tool("o-alpha", cat)
+	f.clock = f.clock.Add(3600e9)
+	f.mustRun("snapshot")
+	want := "+ verb:o-alpha/skill.grep\n~ verb:o-alpha/skill.list  rows: \"skill\" -> \"entry\"\n"
+	if out := f.mustRun("diff"); out != want {
+		t.Fatalf("diff:\n%s\nwant:\n%s", out, want)
+	}
+	if out := f.mustRun("diff", "--all", "20261024T201000Z", "latest"); !strings.Contains(out, `description: null -> "new words"`) {
+		t.Fatalf("diff --all:\n%s", out)
+	}
+	out := f.mustRun("diff", "--jsonl")
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	if len(lines) != 2 || !strings.Contains(lines[1], `"id":"change:20261024T211000Z/verb:o-alpha/skill.list"`) || !strings.Contains(lines[1], `"fields":[{"field":"rows","was":"skill","now":"entry"}]`) {
+		t.Fatalf("jsonl:\n%s", out)
+	}
+}
