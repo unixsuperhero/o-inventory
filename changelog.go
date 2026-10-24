@@ -325,7 +325,11 @@ func (v *view) lines(c Change) []string {
 	}
 	var out []string
 	for _, f := range c.Fields {
-		out = append(out, "changed: "+v.changedText(r, f))
+		line := "changed: " + v.changedText(r, f)
+		if r.Kind() == "lib" && f.Field == "commit" && c.Old != nil && c.Old.Str("sourceCommit") != "" && c.Old.Str("sourceCommit") == r.Str("sourceCommit") {
+			line += "; source unchanged"
+		}
+		out = append(out, line)
 	}
 	return out
 }

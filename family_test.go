@@ -247,3 +247,37 @@ func TestOverviewTreeOfTheLatestSnapshot(t *testing.T) {
 		t.Fatalf("tree %+v", ov)
 	}
 }
+
+// A docs-only commit after the Go commit moves a lib's commit but not its
+// source commit: a binary built between them is not stale, one built
+// before the Go commit is, and the changelog says the source is unchanged.
+func TestSourceCommitIgnoresDocsOnlyCommits(t *testing.T) {
+	for _, tc := range []struct {
+		built time.Time
+		stale bool
+	}{
+		{time.Date(2026, 10, 24, 20, 0, 0, 0, time.UTC), false}, // between the 19:00 Go and 21:00 docs commits
+		{time.Date(2026, 10, 24, 18, 0, 0, 0, time.UTC), true},  // before the Go commit
+	} {
+		f := familyFixture(t, tc.built)
+		f.mustRun("snapshot")
+		was := byID(f.latest())["lib:oden"]
+		f.write(filepath.Join(f.proj("oden"), "CHANGELOG.md"), "# Changelog\n")
+		commitAll(t, f.proj("oden"), "docs: init changelog", "2026-10-24T21:00:00Z")
+		out, _ := f.run("check", "--jsonl")
+		if got := strings.Contains(out, `"kind":"stale-build","subject":"tool:o-cons"`); got != tc.stale {
+			t.Fatalf("built %s: stale %v, want %v:\n%s", tc.built, got, tc.stale, out)
+		}
+		if tc.stale && !strings.Contains(out, "before oden "+was.Str("sourceCommit")+" (2026-10-24T19:00:00Z)") {
+			t.Fatalf("stale detail does not name the source commit:\n%s", out)
+		}
+		got := newestEntry(t, f)
+		now := byID(f.latest())["lib:oden"]
+		if now.Str("sourceTime") != "2026-10-24T19:00:00Z" || now.Str("sourceCommit") != was.Str("sourceCommit") || now.Str("commit") == was.Str("commit") {
+			t.Fatalf("lib oden was %v, now %v", was, now)
+		}
+		if want := "- changed: `oden` commit `" + now.Str("commit") + "`; was `" + was.Str("commit") + "`; source unchanged\n"; !strings.Contains(got, want) {
+			t.Fatalf("entry lacks %q:\n%s", want, got)
+		}
+	}
+}

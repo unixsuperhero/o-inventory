@@ -7,7 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	ocli "github.com/unixsuperhero/ochazuke/cli"
 	"github.com/unixsuperhero/oden"
@@ -255,6 +257,14 @@ func (t *Tool) libRows(tools []Row, add func(Row) bool, warn func(string, ...any
 		}
 		row["dirty"] = dirty
 		row.set("commit", commit).set("commitTime", when).set("version", version)
+		// The source commit is the last that touched Go sources or module
+		// files; a docs-only commit does not make a build stale.
+		if src, _ := git(dir, "log", "-1", "--format=%H%x09%ct", "--", "*.go", "go.mod", "go.sum"); src != "" {
+			hash, ct, _ := strings.Cut(src, "\t")
+			if secs, err := strconv.ParseInt(ct, 10, 64); err == nil && len(hash) >= 7 {
+				row.set("sourceCommit", hash[:7]).set("sourceTime", time.Unix(secs, 0).UTC().Format(time.RFC3339))
+			}
+		}
 		if m := readGoMod(dir); m != nil {
 			row.set("goModule", m.Module)
 			byModule[m.Module] = name

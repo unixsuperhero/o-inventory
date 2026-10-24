@@ -25,8 +25,8 @@ type Problem struct {
 // catalog; nabe hosts whose catalog is older than their bin (another
 // version, or registered before the bin was built); hosts whose bin is
 // missing; projects whose tree is missing; repos that are missing or lack
-// the post-commit hook; tools built before the last commit of a lib they
-// build from (stale-build); tools o does not run (unreachable).
+// the post-commit hook; tools built before the last source commit of a
+// lib they build from (stale-build); tools o does not run (unreachable).
 func (t *Tool) Problems(ctx context.Context) ([]Problem, error) {
 	c := t.Collect(ctx)
 	reg, _, _ := t.registry()
@@ -100,8 +100,9 @@ func (t *Tool) Problems(ctx context.Context) ([]Problem, error) {
 	return out, nil
 }
 
-// staleBuilds are the tools whose binary is older than the last commit of
-// a lib they build from: the lib's own repo, or a go.mod replace onto its
+// staleBuilds are the tools whose binary is older than the source commit
+// (the last that touched Go sources or module files) of a lib they build
+// from: the lib's own repo, or a go.mod replace onto its
 // checkout (a require pins a version, which a lib commit does not change).
 func staleBuilds(rows []Row) []Problem {
 	libs := map[string]Row{}
@@ -141,12 +142,12 @@ func staleBuilds(rows []Row) []Problem {
 		}
 		for lib := range libSet {
 			l := libs[lib]
-			committed, err := time.Parse(time.RFC3339, l.Str("commitTime"))
+			committed, err := time.Parse(time.RFC3339, l.Str("sourceTime"))
 			if err != nil || !built.Before(committed) {
 				continue
 			}
 			out = append(out, Problem{Kind: "stale-build", Subject: "tool:" + name,
-				Detail: fmt.Sprintf("%s built %s, before %s %s (%s); rebuild it", tools[name].Str("bin"), built.UTC().Format(time.RFC3339), lib, l.Str("commit"), committed.UTC().Format(time.RFC3339))})
+				Detail: fmt.Sprintf("%s built %s, before %s %s (%s); rebuild it", tools[name].Str("bin"), built.UTC().Format(time.RFC3339), lib, l.Str("sourceCommit"), committed.UTC().Format(time.RFC3339))})
 		}
 	}
 	sort.Slice(out, func(i, j int) bool {
