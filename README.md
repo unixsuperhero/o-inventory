@@ -7,14 +7,15 @@ go build -o ~/bin/o-inventory .
 o inv snapshot [--commit] [--quiet]    # write a snapshot when anything changed
 o inv diff [A] [B] [--jsonl] [--all]    # previous vs latest by default
 o inv changelog [--repo X] [--write-repos] [--commit]   # --write-repos never commits outside the hub
-o inv check                             # drift; exit 1 when anything is wrong
+o inv check                             # drift (stale-build, unreachable, ...); exit 1 when anything is wrong
+o inv overview [--json]                 # the latest snapshot as one tree: libs, root, tools, hosts, projects
 o inv hook install [REPO|--all]         # post-commit hook in family repos
 o inv daily plist|install|uninstall|status|run   # the launchd job (below)
 o inv repos                             # ~/.config/o-inventory/repos.json
 o inv tool list | o inv verb show --target verb:o-ai/skill.list | o inv state
 ```
 
-Rows (`{kind, id, ...}`, id `<kind>:<path>`): `tool`, `noun`, `verb`, `param`, `binding`, `page`, `host`, `project`, `story`, `edge`. Framework nouns are recorded once under `ochazuke`.
+Rows (`{kind, id, ...}`, id `<kind>:<path>`): `lib` (oden, ochazuke and every repos.json module no tool is built from: path, commit, dirty, version, goModule), `dep` (a tool's or lib's go.mod on a lib: mode `replace`|`require`, version), `shadow` (a claim an `o` command shadows), `tool` (including `o`; `reachable: false` when `o`'s `command state` does not run it), `noun`, `verb`, `param`, `binding`, `page`, `host`, `project`, `story`, `edge`. Framework nouns are recorded once under `ochazuke`.
 
 ## Daily job
 

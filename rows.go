@@ -18,7 +18,7 @@ type Row map[string]any
 
 // Kinds are the row kinds a snapshot holds, in the order the changelog's
 // concepts read them.
-var Kinds = []string{"tool", "noun", "verb", "param", "binding", "page", "host", "project", "story", "edge", "table"}
+var Kinds = []string{"lib", "dep", "shadow", "tool", "noun", "verb", "param", "binding", "page", "host", "project", "story", "edge", "table"}
 
 func (r Row) ID() string   { s, _ := r["id"].(string); return s }
 func (r Row) Kind() string { s, _ := r["kind"].(string); return s }

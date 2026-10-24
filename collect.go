@@ -33,8 +33,8 @@ type pathTool struct {
 	Resolved string // Path with symlinks resolved
 }
 
-// pathTools are the o-* executables (and mtm) on PATH, the first of each
-// name, sorted by name.
+// pathTools are the root o, the o-* executables and mtm on PATH, the
+// first of each name, sorted by name.
 func (t *Tool) pathTools() []pathTool {
 	seen := map[string]bool{}
 	var out []pathTool
@@ -48,7 +48,7 @@ func (t *Tool) pathTools() []pathTool {
 		}
 		for _, e := range entries {
 			name := e.Name()
-			if seen[name] || !(strings.HasPrefix(name, "o-") || name == "mtm") {
+			if seen[name] || !(strings.HasPrefix(name, "o-") || name == "mtm" || name == Root) {
 				continue
 			}
 			full := filepath.Join(dir, name)
@@ -192,7 +192,8 @@ type Collection struct {
 }
 
 // Collect reads every source into rows (not yet sorted): tools on PATH and
-// their catalogs, nabe's registry, o-proj's projects and the hub links, and
+// their catalogs, o's roster (reachable, shadow rows), the libraries and
+// their consumers (lib, dep rows), nabe's registry, o-proj's projects and the hub links, and
 // o-story's stories and mode edges when it answers a catalog with a state.
 func (t *Tool) Collect(ctx context.Context) Collection {
 	c := Collection{Catalogs: map[string]*ocli.CatalogDoc{}}
@@ -226,9 +227,13 @@ func (t *Tool) Collect(ctx context.Context) Collection {
 	byResolved := map[string]string{}
 	docs := map[string]*ocli.CatalogDoc{}
 	bins := map[string]string{}
+	toolRows := map[string]Row{}
+	var toolList []Row
 	for _, pt := range tools {
 		bins[pt.Name] = pt.Path
 		row := newRow("tool", pt.Name)
+		toolRows[pt.Name] = row
+		toolList = append(toolList, row)
 		row["name"] = pt.Name
 		row["bin"] = t.tilde(pt.Path)
 		repo, module, commit := buildFacts(pt.Resolved)
@@ -265,6 +270,10 @@ func (t *Tool) Collect(ctx context.Context) Collection {
 			catalogRows(pt.Name, doc, mounted, add, func(id string) bool { return ids[id] })
 		}
 	}
+	// o's command rows are the roster: a tool o does not run is
+	// reachable: false; a claim an o command shadows is a shadow row.
+	t.markReachable(t.roster(ctx, bins[Root], docs[Root], warn), toolRows, add)
+	t.libRows(toolList, add, warn)
 
 	for _, name := range regNames {
 		e := reg[name]
@@ -305,6 +314,7 @@ func (t *Tool) Collect(ctx context.Context) Collection {
 			}
 			if len(trees) > 0 {
 				row["path"] = trees[0]
+				row.set("github", gitHubRemote(p.Trees[0].Path))
 			}
 			row.set("trees", trees)
 			for name, target := range links {
@@ -324,6 +334,7 @@ func (t *Tool) Collect(ctx context.Context) Collection {
 			row["name"] = name
 			row["path"] = t.tilde(target)
 			row["hubLink"] = true
+			row.set("github", gitHubRemote(target))
 			add(row)
 		}
 	}

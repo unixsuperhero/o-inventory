@@ -8,6 +8,7 @@
 //	o-inventory diff [A] [B] [--jsonl] [--all]     changes between two snapshots
 //	o-inventory changelog [--repo X] [--write-repos] [--commit] [--quiet]
 //	o-inventory check                              drift; non-zero exit when anything is wrong
+//	o-inventory overview [--json]                  the latest snapshot as one tree
 //	o-inventory hook install [REPO|--all]          the post-commit hook
 //	o-inventory daily plist|install|uninstall|status|run   the launchd job
 //	o-inventory repos                              the family repos (repos.json)

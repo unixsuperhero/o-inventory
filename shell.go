@@ -23,7 +23,7 @@ import (
 const Version = "0.1.0"
 
 // rowNouns are the row kinds the runtime lists.
-var rowNouns = []string{"tool", "noun", "verb", "binding", "page", "host", "project", "change"}
+var rowNouns = []string{"lib", "dep", "tool", "noun", "verb", "binding", "page", "host", "project", "change"}
 
 // shellNouns are the runtime's own nouns, mounted as commands.
 var shellNouns = append(append([]string{}, rowNouns...), "inventory")
@@ -39,6 +39,21 @@ type ListRow struct {
 func label(r Row) string {
 	tool, noun := r.Str("tool"), r.Str("noun")
 	switch r.Kind() {
+	case "lib":
+		s := strings.TrimSpace(r.Str("name") + " " + r.Str("commit"))
+		if v := r.Str("version"); v != "" && v != r.Str("commit") {
+			s += " " + v
+		}
+		if r["dirty"] == true {
+			s += ", dirty"
+		}
+		return s
+	case "dep":
+		s := r.Str("tool") + " → " + r.Str("lib") + " " + r.Str("mode")
+		if v := r.Str("replace"); v != "" {
+			return s + " " + v
+		}
+		return strings.TrimSpace(s + " " + r.Str("version"))
 	case "tool":
 		s := r.Str("name")
 		if v := r.Str("version"); v != "" {
@@ -52,6 +67,9 @@ func label(r Row) string {
 			s += ", alias of " + r.Str("alias")
 		case r["catalog"] != true:
 			s += ", no catalog"
+		}
+		if r["reachable"] == false {
+			s += ", not reachable through o"
 		}
 		return s
 	case "noun":
@@ -198,7 +216,26 @@ func (t *Tool) shell() *ocli.Shell {
 				}
 			}
 			return ochazuke.Done(out)
-		}, "every list's rows in one answer, JSON Lines {noun, id, label} for "+strings.Join(rowNouns, ", ")+" (the catalog's state)").State()
+		}, "every list's rows in one answer, JSON Lines {noun, id, label} for "+strings.Join(rowNouns, ", ")+" (the catalog's state)").State().
+		Verb("overview", func(c ochazuke.Ctx) ochazuke.Result {
+			ov, err := t.Overview()
+			if err != nil {
+				return ochazuke.Failed(err)
+			}
+			if asJSON, _ := c.Args["json"].(bool); asJSON {
+				return ochazuke.Done(ov)
+			}
+			var out ocli.Lines
+			for _, line := range strings.Split(strings.TrimRight(ov.Text(), "\n"), "\n") {
+				out = append(out, line)
+			}
+			return ochazuke.Done(out)
+		}, "the latest snapshot as one tree: libs, root, tools, hosts, projects (--json: the tree as data)")
+	{
+		op := r.Operations["inventory.overview"]
+		op.Parameters = map[string]ochazuke.Parameter{"json": {Type: "boolean", Description: "the tree as data instead of text lines"}}
+		r.Operations["inventory.overview"] = op
+	}
 
 	daily := r.Define("daily")
 	for _, v := range dailyVerbs {

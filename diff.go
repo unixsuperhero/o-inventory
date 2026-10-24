@@ -13,7 +13,10 @@ import (
 // for diff --all: descriptions, registeredAt, binMtime, catalog versions a
 // registry holds, row order.
 var compared = map[string][]string{
-	"tool":    {"bin", "version", "commit", "catalog", "alias", "state"},
+	"lib":     {"path", "commit", "dirty", "goModule"},
+	"dep":     {"mode", "version", "replace"},
+	"shadow":  {"winner", "claimKind", "aliasOf"},
+	"tool":    {"bin", "version", "commit", "catalog", "alias", "state", "reachable"},
 	"noun":    {"pin", "framework"},
 	"verb":    {"verbKind", "result", "confirm", "repeatable", "rows", "quiet", "positional"},
 	"param":   {"type", "required", "enum", "source", "free"},
@@ -39,7 +42,7 @@ type FieldChange struct {
 
 // Change is a row added, removed, or changed in compared fields, by id.
 type Change struct {
-	Verb   string        `json:"verb"` // added, changed, removed
+	Verb   string        `json:"verb"` // added (shadow for a shadow row), changed, removed
 	ID     string        `json:"row"`
 	Kind   string        `json:"rowKind"`
 	Fields []FieldChange `json:"fields,omitempty"`
@@ -63,7 +66,11 @@ func Diff(a, b []Row, all bool) []Change {
 	for id, r := range cur {
 		o, ok := old[id]
 		if !ok {
-			out = append(out, Change{Verb: "added", ID: id, Kind: r.Kind(), New: r})
+			verb := "added"
+			if r.Kind() == "shadow" {
+				verb = "shadow" // a claim newly shadowed is its own change
+			}
+			out = append(out, Change{Verb: verb, ID: id, Kind: r.Kind(), New: r})
 			continue
 		}
 		if fields := changedFields(o, r, all); len(fields) > 0 {
@@ -116,11 +123,14 @@ func changeRow(stamp string, c Change) Row {
 	return r
 }
 
-// readable is a change as one line: + ID, - ID, or ~ ID field: was -> now.
+// readable is a change as one line: + ID, ! ID (shadow), - ID, or ~ ID
+// field: was -> now.
 func readable(c Change) string {
 	switch c.Verb {
 	case "added":
 		return "+ " + c.ID
+	case "shadow":
+		return "! " + c.ID
 	case "removed":
 		return "- " + c.ID
 	}

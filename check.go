@@ -9,13 +9,14 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/unixsuperhero/oden"
 )
 
 // Problem is one drift finding: {kind, subject, detail}.
 type Problem struct {
-	Kind    string `json:"kind"`    // no-catalog, stale-catalog, missing-bin, missing-tree, missing-repo, no-hook
+	Kind    string `json:"kind"`    // no-catalog, stale-catalog, stale-build, unreachable, missing-bin, missing-tree, missing-repo, no-hook
 	Subject string `json:"subject"` // the row id or repo it is about
 	Detail  string `json:"detail,omitempty"`
 }
@@ -24,7 +25,8 @@ type Problem struct {
 // catalog; nabe hosts whose catalog is older than their bin (another
 // version, or registered before the bin was built); hosts whose bin is
 // missing; projects whose tree is missing; repos that are missing or lack
-// the post-commit hook.
+// the post-commit hook; tools built before the last commit of a lib they
+// build from (stale-build); tools o does not run (unreachable).
 func (t *Tool) Problems(ctx context.Context) ([]Problem, error) {
 	c := t.Collect(ctx)
 	reg, _, _ := t.registry()
@@ -43,7 +45,11 @@ func (t *Tool) Problems(ctx context.Context) ([]Problem, error) {
 		if r["catalog"] != true && r.Str("alias") == "" {
 			add("no-catalog", r.ID(), "%s catalog fails", r.Str("bin"))
 		}
+		if r["reachable"] == false {
+			add("unreachable", r.ID(), "%s does not list %s (only o-* executables are o's commands)", Root, r.Str("name"))
+		}
 	}
+	out = append(out, staleBuilds(c.Rows)...)
 	for _, r := range c.Rows {
 		switch r.Kind() {
 		case "host":
@@ -92,6 +98,64 @@ func (t *Tool) Problems(ctx context.Context) ([]Problem, error) {
 		return out[i].Subject < out[j].Subject
 	})
 	return out, nil
+}
+
+// staleBuilds are the tools whose binary is older than the last commit of
+// a lib they build from: the lib's own repo, or a go.mod replace onto its
+// checkout (a require pins a version, which a lib commit does not change).
+func staleBuilds(rows []Row) []Problem {
+	libs := map[string]Row{}
+	tools := map[string]Row{}
+	for _, r := range rows {
+		switch r.Kind() {
+		case "lib":
+			libs[r.Str("name")] = r
+		case "tool":
+			if r.Str("alias") == "" {
+				tools[r.Str("name")] = r
+			}
+		}
+	}
+	uses := map[string]map[string]bool{} // tool -> libs
+	use := func(tool, lib string) {
+		if uses[tool] == nil {
+			uses[tool] = map[string]bool{}
+		}
+		uses[tool][lib] = true
+	}
+	for name, r := range tools {
+		if libs[r.Str("repo")] != nil {
+			use(name, r.Str("repo"))
+		}
+	}
+	for _, r := range rows {
+		if r.Kind() == "dep" && r.Str("consumer") == "tool" && r.Str("mode") == "replace" {
+			use(r.Str("tool"), r.Str("lib"))
+		}
+	}
+	var out []Problem
+	for name, libSet := range uses {
+		built, err := time.Parse(time.RFC3339, tools[name].Str("binMtime"))
+		if err != nil {
+			continue
+		}
+		for lib := range libSet {
+			l := libs[lib]
+			committed, err := time.Parse(time.RFC3339, l.Str("commitTime"))
+			if err != nil || !built.Before(committed) {
+				continue
+			}
+			out = append(out, Problem{Kind: "stale-build", Subject: "tool:" + name,
+				Detail: fmt.Sprintf("%s built %s, before %s %s (%s); rebuild it", tools[name].Str("bin"), built.UTC().Format(time.RFC3339), lib, l.Str("commit"), committed.UTC().Format(time.RFC3339))})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Subject != out[j].Subject {
+			return out[i].Subject < out[j].Subject
+		}
+		return out[i].Detail < out[j].Detail
+	})
+	return out
 }
 
 func orNone(s string) string {

@@ -16,6 +16,7 @@ var Concepts = []struct {
 	Title string
 	Kinds []string
 }{
+	{"Root and libraries", []string{"lib", "dep", "shadow"}},
 	{"Tools", []string{"tool"}},
 	{"Nouns and verbs", []string{"noun", "verb", "param"}},
 	{"Keybindings", []string{"binding"}},
@@ -210,6 +211,12 @@ func (v *view) repoOf(r Row) string {
 		return ""
 	case "story", "edge":
 		return v.toolRepo["o-story"]
+	case "lib":
+		return r.Str("name")
+	case "dep":
+		if r.Str("consumer") == "lib" {
+			return r.Str("tool")
+		}
 	}
 	return v.toolRepo[r.Str("tool")]
 }
@@ -291,6 +298,12 @@ func (v *view) thing(r Row) string {
 		return "edge `" + r.Str("from") + "` → `" + r.Str("to") + "` via `" + r.Str("via") + "`"
 	case "table":
 		return "table `" + strings.TrimPrefix(r.ID(), "table:") + "`"
+	case "lib":
+		return "`" + r.Str("name") + "`"
+	case "dep":
+		return "`" + tool + "` → `" + r.Str("lib") + "`"
+	case "shadow":
+		return "`" + tool + " " + r.Str("name") + "`"
 	}
 	return "`" + r.ID() + "`"
 }
@@ -307,6 +320,8 @@ func (v *view) lines(c Change) []string {
 		return []string{"added: " + v.addedText(r)}
 	case "removed":
 		return []string{"removed: " + v.removedText(r)}
+	case "shadow":
+		return []string{"shadow: " + v.thing(r) + " runs `" + r.Str("winner") + "`; " + r.Str("claimKind") + " `" + r.Str("source") + "` is shadowed"}
 	}
 	var out []string
 	for _, f := range c.Fields {
@@ -331,6 +346,20 @@ func (v *view) counted(id string) string {
 
 func (v *view) addedText(r Row) string {
 	switch r.Kind() {
+	case "lib":
+		s := "library `" + r.Str("name") + "` at `" + r.Str("path") + "`"
+		if c := strings.TrimSpace(r.Str("commit") + " " + r.Str("version")); c != "" {
+			s += " (" + c + ")"
+		}
+		return s
+	case "dep":
+		s := v.thing(r) + " by " + r.Str("mode")
+		if r.Str("replace") != "" {
+			s += " `" + r.Str("replace") + "`"
+		} else if r.Str("version") != "" {
+			s += " `" + r.Str("version") + "`"
+		}
+		return s
 	case "tool":
 		s := "`" + r.Str("name") + "` at `" + r.Str("bin") + "`"
 		if repo := strings.TrimSpace(r.Str("repo") + " " + r.Str("commit")); repo != "" {

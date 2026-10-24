@@ -43,6 +43,7 @@ func TestCatalogAnswersAndBindingsValidate(t *testing.T) {
 
 func TestNounsListShowAndStateFromTheLatestSnapshot(t *testing.T) {
 	f := newFixture(t)
+	f.libs()
 	f.mustRun("snapshot")
 	f.tool("o-alpha", alphaCatalog("grep"))
 	f.clock = f.clock.Add(60e9)

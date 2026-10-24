@@ -109,6 +109,13 @@ func (t *Tool) commands() []oden.Command {
 			}
 			return t.Check(ctx, f.bools["jsonl"])
 		}},
+		{Name: "overview", Summary: "the latest snapshot as one tree: libs, root, tools, hosts, projects (--json: the tree as data; inventory overview)", Run: func(ctx context.Context, args []string) error {
+			f, err := parseFlags("overview", args, []string{"json"}, nil)
+			if err != nil {
+				return err
+			}
+			return t.OverviewCommand(f.bools["json"])
+		}},
 		{Name: "hook", Summary: "hook install [REPO|--all]: the post-commit hook that snapshots after a commit touching *.go, go.mod, stories/ or a catalog golden (idempotent; appends to an existing hook)", Run: func(ctx context.Context, args []string) error {
 			return t.HookCommand(args)
 		}},

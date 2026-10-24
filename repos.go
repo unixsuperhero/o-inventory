@@ -26,16 +26,46 @@ var seededFrameworkRepos = []string{"ochazuke", "oden", "matomeru"}
 // whose target is a repository of its own, plus ~/proj/{ochazuke, oden,
 // matomeru}; seeded reports that this call wrote it.
 func (t *Tool) Repos() (repos []Repo, seeded bool, err error) {
-	data, err := os.ReadFile(t.ReposPath())
-	if err == nil {
-		if err := json.Unmarshal(data, &repos); err != nil {
-			return nil, false, fmt.Errorf("%s: %w", t.tilde(t.ReposPath()), err)
-		}
-		return repos, false, nil
+	repos, exists, err := t.readRepos()
+	if err != nil || exists {
+		return repos, false, err
 	}
-	if !os.IsNotExist(err) {
+	repos = t.seedRepos()
+	if err := t.saveRepos(repos); err != nil {
 		return nil, false, err
 	}
+	return repos, true, nil
+}
+
+// knownRepos is the repos config, or the seed it would be written with,
+// without writing it (collection reads it; only Repos seeds the file).
+func (t *Tool) knownRepos() ([]Repo, error) {
+	repos, exists, err := t.readRepos()
+	if err != nil || exists {
+		return repos, err
+	}
+	return t.seedRepos(), nil
+}
+
+// readRepos is repos.json; exists is false when there is none.
+func (t *Tool) readRepos() (repos []Repo, exists bool, err error) {
+	data, err := os.ReadFile(t.ReposPath())
+	if os.IsNotExist(err) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	if err := json.Unmarshal(data, &repos); err != nil {
+		return nil, true, fmt.Errorf("%s: %w", t.tilde(t.ReposPath()), err)
+	}
+	return repos, true, nil
+}
+
+// seedRepos are the hub's o/ links that are repositories of their own and
+// ~/proj/{ochazuke, oden, matomeru}, by name.
+func (t *Tool) seedRepos() []Repo {
+	var repos []Repo
 	byPath := map[string]Repo{}
 	for name, target := range t.hubLinks() {
 		if isRepoRoot(target) {
@@ -52,10 +82,7 @@ func (t *Tool) Repos() (repos []Repo, seeded bool, err error) {
 		repos = append(repos, r)
 	}
 	sort.Slice(repos, func(i, j int) bool { return repos[i].Name < repos[j].Name })
-	if err := t.saveRepos(repos); err != nil {
-		return nil, false, err
-	}
-	return repos, true, nil
+	return repos
 }
 
 // saveRepos writes the repos config, sorted by name.
