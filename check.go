@@ -57,7 +57,7 @@ func (t *Tool) Problems(ctx context.Context) ([]Problem, error) {
 				continue
 			}
 			registered, err1 := time.Parse(time.RFC3339, r.Str("registeredAt"))
-			if info, err2 := os.Stat(resolved); err1 == nil && err2 == nil && info.ModTime().After(registered) {
+			if info, err2 := os.Stat(resolved); err1 == nil && err2 == nil && info.ModTime().Truncate(time.Second).After(registered) { // registeredAt has whole seconds
 				add("stale-catalog", r.ID(), "registered %s; %s built %s", registered.UTC().Format(time.RFC3339), r.Str("bin"), info.ModTime().UTC().Format(time.RFC3339))
 			}
 		case "project":
