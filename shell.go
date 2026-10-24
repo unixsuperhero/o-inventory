@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -197,6 +199,38 @@ func (t *Tool) shell() *ocli.Shell {
 			}
 			return ochazuke.Done(out)
 		}, "every list's rows in one answer, JSON Lines {noun, id, label} for "+strings.Join(rowNouns, ", ")+" (the catalog's state)").State()
+
+	daily := r.Define("daily")
+	for _, v := range dailyVerbs {
+		verb := v.Name
+		daily.Verb(verb, func(c ochazuke.Ctx) ochazuke.Result {
+			o := DailyOptions{Out: ochazuke.StringArg(c.Args, "out", ""), Hour: ochazuke.IntArg(c.Args, "hour", 9), Minute: ochazuke.IntArg(c.Args, "minute", 0)}
+			var buf bytes.Buffer
+			if err := t.Daily(context.Background(), verb, o, &buf); err != nil {
+				return ochazuke.Failed(err)
+			}
+			var out ocli.Lines
+			for _, line := range strings.Split(strings.TrimRight(buf.String(), "\n"), "\n") {
+				out = append(out, line)
+			}
+			return ochazuke.Done(out)
+		}, v.Summary)
+	}
+	timeParams := map[string]ochazuke.Parameter{
+		"hour":   {Type: "integer", Description: "the hour the job runs, local time (default 9)"},
+		"minute": {Type: "integer", Description: "the minute the job runs (default 0)"},
+	}
+	for _, verb := range []string{"plist", "install"} {
+		op := r.Operations["daily."+verb]
+		op.Parameters = map[string]ochazuke.Parameter{}
+		for k, p := range timeParams {
+			op.Parameters[k] = p
+		}
+		if verb == "plist" {
+			op.Parameters["out"] = ochazuke.Parameter{Type: "string", Description: "write the plist to this path instead of stdout"}
+		}
+		r.Operations["daily."+verb] = op
+	}
 
 	sh := ocli.New(r, "o-inventory", t.Stdin, t.Stdout, t.Stderr)
 	sh.Usage = ocli.DefaultUsage(t.Prog)

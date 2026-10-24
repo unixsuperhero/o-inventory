@@ -644,7 +644,8 @@ type ChangelogOptions struct {
 // Changelog writes ~/hub/CHANGELOG.md (merging new entries), or prints one
 // repo's entries with Repo; WriteRepos also merges each family repo's
 // entries into its CHANGELOG.md (only repos with entries; created when
-// missing); Commit commits the hub's file.
+// missing), which it never commits: they are left for the owner to
+// review. Commit commits the hub's file and nothing outside the hub.
 func (t *Tool) Changelog(_ context.Context, o ChangelogOptions) error {
 	if o.Repo != "" && !o.WriteRepos {
 		entries, err := t.Entries(o.Repo)

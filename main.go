@@ -9,7 +9,7 @@
 //	o-inventory changelog [--repo X] [--write-repos] [--commit] [--quiet]
 //	o-inventory check                              drift; non-zero exit when anything is wrong
 //	o-inventory hook install [REPO|--all]          the post-commit hook
-//	o-inventory daily install                      the launchd plist (printed, not loaded)
+//	o-inventory daily plist|install|uninstall|status|run   the launchd job
 //	o-inventory repos                              the family repos (repos.json)
 //	o-inventory NOUN list|show                     rows of the latest snapshot
 //	o-inventory state                              every noun's rows, JSON Lines
@@ -40,6 +40,7 @@ type Tool struct {
 	Env            []string
 	Home, Cwd      string
 	Prog           string // "o inventory" under o, else "o-inventory"; messages only
+	UID            int    // the launchd gui/UID domain of the daily job
 
 	Now func() time.Time // time.Now unless a test sets the clock
 }
@@ -60,7 +61,7 @@ func main() {
 	if err != nil {
 		os.Exit(oden.Report(os.Stderr, prog, err))
 	}
-	t := &Tool{Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, Env: os.Environ(), Home: home, Cwd: cwd, Prog: prog, Now: time.Now}
+	t := &Tool{Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, Env: os.Environ(), Home: home, Cwd: cwd, Prog: prog, UID: os.Getuid(), Now: time.Now}
 	os.Exit(oden.Report(os.Stderr, t.Prog, t.Main(context.Background(), os.Args[1:])))
 }
 

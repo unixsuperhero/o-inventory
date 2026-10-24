@@ -89,7 +89,7 @@ func (t *Tool) commands() []oden.Command {
 			}
 			return t.DiffCommand(f.words, f.bools["jsonl"], f.bools["all"])
 		}},
-		{Name: "changelog", Summary: "merge the snapshots' entries into ~/hub/CHANGELOG.md (--repo X prints one repo's; --write-repos also each repo's CHANGELOG.md; --commit commits the hub's; --quiet)", Run: func(ctx context.Context, args []string) error {
+		{Name: "changelog", Summary: "merge the snapshots' entries into ~/hub/CHANGELOG.md (--repo X prints one repo's; --write-repos also each repo's CHANGELOG.md, never committed (left for review); --commit commits only the hub's; --quiet)", Run: func(ctx context.Context, args []string) error {
 			f, err := parseFlags("changelog", args, []string{"write-repos", "commit", "quiet"}, []string{"repo"})
 			if err != nil {
 				return err
@@ -112,8 +112,8 @@ func (t *Tool) commands() []oden.Command {
 		{Name: "hook", Summary: "hook install [REPO|--all]: the post-commit hook that snapshots after a commit touching *.go, go.mod, stories/ or a catalog golden (idempotent; appends to an existing hook)", Run: func(ctx context.Context, args []string) error {
 			return t.HookCommand(args)
 		}},
-		{Name: "daily", Summary: "daily install: write the launchd agent that snapshots and writes the changelogs daily; prints it and the launchctl load command (never loads it)", Run: func(ctx context.Context, args []string) error {
-			return t.DailyCommand(args)
+		{Name: "daily", Summary: "daily plist|install|uninstall|status|run: the launchd job (" + DailyLabel + ", 09:00 local) that snapshots and writes the changelogs; install bootstraps it in gui/UID", Run: func(ctx context.Context, args []string) error {
+			return t.DailyCommand(ctx, args)
 		}},
 	}
 }

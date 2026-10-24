@@ -91,29 +91,6 @@ func TestHookSnapshotsOnlyForCatalogFiles(t *testing.T) {
 	}
 }
 
-func TestDailyInstallWritesThePlistAndNeverLoadsIt(t *testing.T) {
-	f := newFixture(t)
-	tool := f.tool0()
-	tool.Env = append(tool.Env, "USER=someone")
-	f.out.Reset()
-	if err := tool.DailyCommand([]string{"install"}); err != nil {
-		t.Fatal(err)
-	}
-	path := filepath.Join(f.home, "Library", "LaunchAgents", "com.someone.o-inventory.plist")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, want := range []string{"<string>com.someone.o-inventory</string>", "o-inventory snapshot --commit --quiet &amp;&amp; o-inventory changelog --write-repos --commit --quiet", "<key>Hour</key>"} {
-		if !strings.Contains(string(data), want) {
-			t.Fatalf("plist lacks %q:\n%s", want, data)
-		}
-	}
-	if out := f.out.String(); !strings.Contains(out, "launchctl load "+path) || !strings.Contains(out, string(data)) {
-		t.Fatalf("output:\n%s", out)
-	}
-}
-
 func TestHookInstallByPathJoinsReposOnce(t *testing.T) {
 	f := newFixture(t)
 	f.mustRun("repos")
