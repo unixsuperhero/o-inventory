@@ -25,9 +25,6 @@ const Version = "0.1.0"
 // rowNouns are the row kinds the runtime lists.
 var rowNouns = []string{"lib", "dep", "tool", "noun", "verb", "binding", "page", "host", "project", "change"}
 
-// shellNouns are the runtime's own nouns, mounted as commands.
-var shellNouns = append(append([]string{}, rowNouns...), "inventory")
-
 // ListRow is one element of a list.
 type ListRow struct {
 	ID    string `json:"id"`

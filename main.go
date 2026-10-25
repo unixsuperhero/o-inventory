@@ -78,32 +78,13 @@ func (t *Tool) Main(ctx context.Context, args []string) error {
 	return app.Run(ctx)
 }
 
-// mount makes each of the runtime's own nouns a command running the shell,
-// plus catalog and state (inventory state). The framework's nouns stay out
-// of the command words; they remain in the catalog, where a host skips them.
+// mount keeps the inventory state shortcut ahead of the runtime's state noun.
+// Shared mounting supplies every noun's contextual help and catalog.
 func mount(app *oden.App, sh *ocli.Shell) {
-	for _, noun := range shellNouns {
-		var verbs []string
-		for _, op := range sh.Runtime.Catalog() {
-			if op.Noun == noun {
-				verbs = append(verbs, op.Verb)
-			}
-		}
-		app.Add(oden.Command{Name: noun, Summary: strings.Join(verbs, " "), Source: "noun", Run: func(ctx context.Context, rest []string) error {
-			return sh.Run(ctx, append([]string{noun}, rest...))
-		}})
-	}
 	app.Add(oden.Command{Name: "state", Summary: "every noun's rows of the latest snapshot as JSON Lines (inventory state)", Source: "noun", Run: func(ctx context.Context, rest []string) error {
 		return sh.Run(ctx, append([]string{"inventory", "state"}, rest...))
 	}})
-	app.Add(oden.Command{Name: "catalog", Summary: "print the nouns, verbs, bindings and pages as JSON", Source: "cli", Run: func(context.Context, []string) error {
-		data, err := ocli.Catalog(sh.Runtime, sh.Bin, sh.Version)
-		if err != nil {
-			return err
-		}
-		_, err = fmt.Fprintf(sh.Stdout, "%s\n", data)
-		return err
-	}})
+	ocli.Mount(app, sh)
 }
 
 // getenv is a variable of t.Env, "" when unset.

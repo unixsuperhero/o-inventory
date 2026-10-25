@@ -2,9 +2,55 @@ package main
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestNounHelpDoesNotExecute(t *testing.T) {
+	for _, args := range [][]string{
+		{"tool"},
+		{"tool", "--help"},
+		{"help", "tool"},
+		{"tool", "show", "--help"},
+	} {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			f := newFixture(t)
+			// Invalid snapshot data makes accidental operation execution fail.
+			path := filepath.Join(f.home, "hub", "inventory", Latest)
+			f.write(path, "not JSON\n")
+			out := f.mustRun(args...)
+			for _, want := range []string{"tool", "show"} {
+				if !strings.Contains(out, want) {
+					t.Errorf("help missing %q:\n%s", want, out)
+				}
+			}
+			if len(args) == 1 || args[1] != "show" {
+				if !strings.Contains(out, "list") {
+					t.Errorf("group help missing list:\n%s", out)
+				}
+			}
+			data, err := os.ReadFile(path)
+			if err != nil || string(data) != "not JSON\n" {
+				t.Fatalf("help changed snapshot: %q, %v", data, err)
+			}
+			entries, err := os.ReadDir(filepath.Dir(path))
+			if err != nil || len(entries) != 1 {
+				t.Fatalf("help changed inventory files: %v, %v", entries, err)
+			}
+		})
+	}
+
+	f := newFixture(t)
+	out, err := f.run("tool", "not-a-verb")
+	if err == nil {
+		t.Fatal("unknown verb succeeded")
+	}
+	if !strings.Contains(out+f.err.String()+err.Error(), "list") {
+		t.Fatalf("unknown verb omitted available children: %s %s %v", out, f.err.String(), err)
+	}
+}
 
 func TestCatalogAnswersAndBindingsValidate(t *testing.T) {
 	f := newFixture(t)
