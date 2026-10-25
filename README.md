@@ -11,7 +11,7 @@ o inv check                             # drift (stale-build, unreachable, ...);
 o inv overview [--json]                 # the latest snapshot as one tree: libs, root, tools, hosts, projects
 o inv hook install [REPO|--all]         # post-commit hook in family repos
 o inv daily plist|install|uninstall|status|run   # the launchd job (below)
-o inv repos                             # ~/.config/o-inventory/repos.json
+o inv repos                             # o proj's manifest (~/hub/repos.json) merged with ~/.config/o-inventory/repos.json
 o inv tool list | o inv verb show --target verb:o-ai/skill.list | o inv state
 ```
 
@@ -34,3 +34,5 @@ o inv daily uninstall                                  # launchctl bootout; remo
 The plist (`~/Library/LaunchAgents/com.unixsuperhero.o-inventory.plist`) runs `/bin/sh ~/.local/share/o-inventory/daily.sh` with `PATH` (~/bin, the Go bin dir, Homebrew, system) and `MTM_SERVER=default`, `RunAtLoad` false. The wrapper runs `o-inventory snapshot --commit --quiet && o-inventory changelog --write-repos --commit --quiet` and appends one line per run (`TIMESTAMP ok|failed (exit N) in Ns`) to `~/Library/Logs/o-inventory/daily.log`; launchd's own output goes to `stdout.log` and `stderr.log` beside it. Only the hub commits: each repo's `CHANGELOG.md` is written and left uncommitted for review. `install` is idempotent (a loaded job is booted out, then bootstrapped again); it uses `launchctl bootstrap`/`bootout`/`print`, never the deprecated `load`/`unload`.
 
 Until ochazuke and oden are tagged, `go.mod` replaces them with the local checkouts in `~/proj`.
+
+Repositories: o proj's manifest (`~/hub/repos.json`, `$O_PROJ_MANIFEST`) is read first and merged by name with `~/.config/o-inventory/repos.json`, which keeps `roots` and the directories `hook install` adds and is the only repos file written here; without a manifest the repos.json alone is used. Projects are `o-proj list`'s rows (manifest entries; `dir` is the path).

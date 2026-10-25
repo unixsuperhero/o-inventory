@@ -31,10 +31,23 @@ var seededFrameworkRepos = []string{"ochazuke", "oden", "matomeru"}
 // is ochazuke's and has no command noun to say so.
 var seededRoots = map[string][]string{"matomeru": {"mtm"}}
 
-// Repos is the repos config, written on first use from the hub's o/ links
-// whose target is a repository of its own, plus ~/proj/{ochazuke, oden,
-// matomeru}; seeded reports that this call wrote it.
+// Repos is the family's repositories: o proj's manifest merged with the
+// repos config (localRepos), the one read view hook install, check and the
+// changelog use; seeded reports that this call wrote the repos config.
 func (t *Tool) Repos() (repos []Repo, seeded bool, err error) {
+	local, seeded, err := t.localRepos()
+	if err != nil {
+		return nil, false, err
+	}
+	merged, err := t.withManifest(local)
+	return merged, seeded, err
+}
+
+// localRepos is the repos config, written on first use from the hub's o/ links
+// whose target is a repository of its own, plus ~/proj/{ochazuke, oden,
+// matomeru}; seeded reports that this call wrote it. It is the only repos
+// file o-inventory writes (hook install adds to it).
+func (t *Tool) localRepos() (repos []Repo, seeded bool, err error) {
 	repos, exists, err := t.readRepos()
 	if err != nil || exists {
 		return repos, false, err
@@ -50,10 +63,57 @@ func (t *Tool) Repos() (repos []Repo, seeded bool, err error) {
 // without writing it (collection reads it; only Repos seeds the file).
 func (t *Tool) knownRepos() ([]Repo, error) {
 	repos, exists, err := t.readRepos()
-	if err != nil || exists {
-		return repos, err
+	if err != nil {
+		return nil, err
 	}
-	return t.seedRepos(), nil
+	if !exists {
+		repos = t.seedRepos()
+	}
+	return t.withManifest(repos)
+}
+
+// ManifestPath is o proj's manifest: $O_PROJ_MANIFEST, else
+// ~/hub/repos.json (o-proj ManifestPath).
+func (t *Tool) ManifestPath() string {
+	if v := t.getenv("O_PROJ_MANIFEST"); v != "" {
+		return t.untilde(v)
+	}
+	return filepath.Join(t.Home, "hub", "repos.json")
+}
+
+// withManifest merges o proj's manifest into the repos config: the
+// manifest's entries first (name and path), each taking the roots the
+// repos config gives the same name, then the config's entries the manifest
+// does not name. No manifest leaves the config as it is (the fallback).
+func (t *Tool) withManifest(local []Repo) ([]Repo, error) {
+	data, err := os.ReadFile(t.ManifestPath())
+	if os.IsNotExist(err) {
+		return local, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var manifest []Repo
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return nil, fmt.Errorf("%s: %w", t.tilde(t.ManifestPath()), err)
+	}
+	byName := map[string]Repo{}
+	for _, r := range local {
+		byName[r.Name] = r
+	}
+	out := make([]Repo, 0, len(manifest)+len(local))
+	named := map[string]bool{}
+	for _, m := range manifest {
+		named[m.Name] = true
+		out = append(out, Repo{Name: m.Name, Path: m.Path, Roots: byName[m.Name].Roots})
+	}
+	for _, r := range local {
+		if !named[r.Name] {
+			out = append(out, r)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out, nil
 }
 
 // readRepos is repos.json; exists is false when there is none.

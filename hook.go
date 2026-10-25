@@ -170,7 +170,11 @@ func (t *Tool) HookCommand(args []string) error {
 		return fmt.Errorf("hook install failed in %s", strings.Join(failed, ", "))
 	}
 	if added {
-		if err := t.saveRepos(append(repos, targets[0])); err != nil {
+		local, _, err := t.localRepos()
+		if err != nil {
+			return err
+		}
+		if err := t.saveRepos(append(local, targets[0])); err != nil {
 			return err
 		}
 		fmt.Fprintf(t.Stdout, "%s: added to %s\n", targets[0].Name, t.tilde(t.ReposPath()))

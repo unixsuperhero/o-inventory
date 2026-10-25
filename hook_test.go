@@ -106,3 +106,39 @@ func TestHookInstallByPathJoinsReposOnce(t *testing.T) {
 		t.Fatalf("repos %s", out)
 	}
 }
+
+// o proj's manifest joins the repos view (hook install, check, changelog):
+// its entries come first and take repos.json's roots; repos.json keeps
+// only its own entries when hook install adds one.
+func TestReposMergeTheManifest(t *testing.T) {
+	f := newFixture(t)
+	f.mustRun("repos") // seeds repos.json
+	f.write(filepath.Join(f.home, "hub", "repos.json"), `[{"name":"matomeru","path":"~/proj/matomeru","url":"u","origin":"adopted"},{"name":"beta","path":"~/proj/beta"}]`)
+	tl := f.tool0()
+	repos, _, err := tl.Repos()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]Repo{}
+	for _, r := range repos {
+		got[r.Name] = r
+	}
+	if got["beta"].Path != "~/proj/beta" || len(got["matomeru"].Roots) != 1 || got["oden"].Path == "" {
+		t.Fatalf("merged %+v", repos)
+	}
+	gamma := filepath.Join(f.home, "proj", "gamma")
+	gitRepo(t, gamma, map[string]string{"feat: one": "2026-10-24T19:00:00Z"})
+	f.mustRun("hook", "install", gamma)
+	local, _, err := tl.localRepos()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range local {
+		if r.Name == "beta" {
+			t.Fatal("hook install wrote a manifest entry into repos.json")
+		}
+	}
+	if !strings.Contains(f.mustRun("repos"), `"gamma"`) {
+		t.Fatal("gamma not added")
+	}
+}

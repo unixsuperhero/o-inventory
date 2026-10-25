@@ -148,8 +148,11 @@ func (t *Tool) registry() (map[string]Entry, []string, error) {
 	return out, names, nil
 }
 
-// Project is a row of o-proj list (matomeru internal/work Project).
+// Project is a row of o-proj list: a manifest entry (name, url, path with
+// ~, branch, origin, dir); the id, status and tree fields are the older
+// rows o-proj printed from mtm's store, still read when present.
 type Project struct {
+	Dir         string `json:"dir"`
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	Status      string `json:"status"`
@@ -163,9 +166,12 @@ type Project struct {
 	} `json:"trees"`
 }
 
-// tree is the tree o-proj links from the hub (o-proj projectTree): the
-// default tree, else the first.
+// tree is the directory o-proj links from the hub: the manifest row's dir,
+// else (older rows) the default tree, else the first.
 func (p Project) tree() string {
+	if p.Dir != "" {
+		return p.Dir
+	}
 	if p.DefaultTree != "" {
 		return p.DefaultTree
 	}
