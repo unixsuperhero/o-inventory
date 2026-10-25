@@ -1,6 +1,10 @@
 # o-inventory: agent guide
 
-The family's derived inventory and changelog (`o-inventory`, so `o inv` and `o inventory`). An oden app with an ochazuke runtime behind `ochazuke/cli`. Design: `~/proj/matomeru/docs/plans/inventory.md`. Every fact is read from a source that must already be right (a tool's `catalog`, nabe's registry, `o-proj list`, the hub's `o/` links, `git log`); nothing is hand-written. A wrong fact is fixed in its tool.
+The family's derived inventory and changelog (`o-inventory`, so `o inv` and `o inventory`). An oden app with an ochazuke runtime behind `ochazuke/cli`. Design: `~/hub/o-plans/plans/inventory.md`. Every fact is read from a source that must already be right (a tool's `catalog`, nabe's registry, `o-proj list`, the hub's `o/` links, `git log`); nothing is hand-written. A wrong fact is fixed in its tool.
+
+## Plans and todos
+
+Family plans, todos and the roadmap live in `~/hub/o-plans/` (`README.md` is the index). Read it before planning work; add or update items there. Do not add a TODO.md or docs/plans/ to this repo.
 
 ## Where does X live
 
