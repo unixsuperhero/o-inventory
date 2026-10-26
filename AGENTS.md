@@ -23,6 +23,7 @@ Family plans, todos and the roadmap live in `~/hub/o-plans/` (`README.md` is the
 | `overview`: the latest snapshot as one tree (text, `--json`) | `overview.go` |
 | Post-commit hook; the daily launchd job (plist, wrapper, install/uninstall/status/run via launchctl) | `hook.go`, `daily.go` |
 | The runtime: row nouns, list/show, `inventory state` | `shell.go` |
+| Run rows: one per snapshot written, its row and diff counts (`run list`, read only when asked) | `runs.go` |
 | Table columns per row noun (the catalog's columns) and each row's cells | `table.go` |
 
 ## Invariants

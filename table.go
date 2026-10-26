@@ -142,6 +142,12 @@ var tables = map[string]table{
 			return []string{r.Str("verb"), r.Str("rowKind"), r.Str("row"), strings.Join(fields, ","), stampText(r.Str("stamp"))}
 		},
 	},
+	"run": {
+		columns: []ochazuke.Column{{Title: "time", Min: 20}, {Title: "rows", Align: right}, {Title: "changes", Align: right}, {Title: "added", Align: right, Priority: 1}, {Title: "changed", Align: right, Priority: 1}, {Title: "removed", Align: right, Priority: 1}},
+		cells: func(r Row) []string {
+			return []string{r.Str("time"), number(r["rows"]), number(r["changes"]), number(r["added"]), number(r["changed"]), number(r["removed"])}
+		},
+	},
 }
 
 // cellsOf is a row's cells when its noun has columns, else nil.

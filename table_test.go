@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -103,5 +104,34 @@ func TestEveryRowCarriesItsCells(t *testing.T) {
 		if !slices.Equal(first[noun], want) {
 			t.Errorf("%s first cells %q, want %q", noun, first[noun], want)
 		}
+	}
+}
+
+// run list is the snapshots written, newest first, each with its row count
+// and the diff counts from the one before; run show finds one by stamp.
+func TestRunRowsAreTheSnapshotsWritten(t *testing.T) {
+	f := tableFixture(t)
+	f.mustRun("snapshot") // no change: no snapshot, no run
+	var runs []ListRow
+	if err := json.Unmarshal([]byte(f.mustRun("run", "list")), &runs); err != nil {
+		t.Fatal(err)
+	}
+	if len(runs) != 2 || runs[0].ID != "run:20261024T201100Z" || runs[1].ID != "run:20261024T201000Z" {
+		t.Fatalf("runs %+v", runs)
+	}
+	rows := len(f.latest()) // the second run added one verb row
+	first, second := runs[1].Cells, runs[0].Cells
+	if want := []string{"2026-10-24T20:10:00Z", strconv.Itoa(rows - 1), strconv.Itoa(rows - 1), strconv.Itoa(rows - 1), "0", "0"}; !slices.Equal(first, want) {
+		t.Errorf("first run cells %q, want %q", first, want)
+	}
+	if want := []string{"2026-10-24T20:11:00Z", strconv.Itoa(rows), "1", "1", "0", "0"}; !slices.Equal(second, want) {
+		t.Errorf("second run cells %q, want %q", second, want)
+	}
+	var row Row
+	if err := json.Unmarshal([]byte(f.mustRun("run", "show", "20261024T201000Z")), &row); err != nil || row.ID() != "run:20261024T201000Z" {
+		t.Fatalf("run show: %v %v", err, row)
+	}
+	if err := json.Unmarshal([]byte(f.mustRun("run", "show", "--target", "run:20261024T201100Z")), &row); err != nil || row.Str("stamp") != "20261024T201100Z" {
+		t.Fatalf("run show --target: %v %v", err, row)
 	}
 }

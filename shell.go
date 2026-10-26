@@ -17,13 +17,14 @@ import (
 // snapshot, declared with Rows so nabe mounts them) and show (one row by
 // --target ID or ENTRY), and inventory state, every list's rows as JSON
 // Lines (the catalog's state). A list row is {id, label, data: the row};
-// change rows are the diff of the previous snapshot and the latest.
+// change rows are the diff of the previous snapshot and the latest; run
+// rows are the snapshots written (runs.go).
 
 // Version is the catalog's version.
 const Version = "0.1.0"
 
 // rowNouns are the row kinds the runtime lists.
-var rowNouns = []string{"lib", "dep", "tool", "noun", "verb", "binding", "page", "host", "project", "story", "edge", "table", "change"}
+var rowNouns = []string{"lib", "dep", "tool", "noun", "verb", "binding", "page", "host", "project", "story", "edge", "table", "change", "run"}
 
 // ListRow is one element of a list.
 type ListRow struct {
@@ -109,6 +110,8 @@ func label(r Row) string {
 			s += ", append-only"
 		}
 		return s + ")"
+	case "run":
+		return fmt.Sprintf("%s: %s rows, %s changes", r.Str("stamp"), number(r["rows"]), number(r["changes"]))
 	case "change":
 		if l := r.Str("line"); l != "" {
 			return l
@@ -119,7 +122,8 @@ func label(r Row) string {
 }
 
 // inventoryRows are the latest snapshot's rows plus its change rows (the
-// diff from the snapshot before it), by kind.
+// diff from the snapshot before it), by kind; the run rows are read on
+// their own (runRows), only when asked for.
 func (t *Tool) inventoryRows() (map[string][]Row, error) {
 	out := map[string][]Row{}
 	rows, err := readRows(filepath.Join(t.InventoryDir(), Latest))
@@ -154,13 +158,27 @@ func (t *Tool) shell() *ocli.Shell {
 		lists[noun] = list
 	}
 	var cache map[string][]Row
-	load := func() (map[string][]Row, error) {
-		if cache != nil {
+	runsRead := false
+	// load is the rows of the latest snapshot's nouns, and the run rows
+	// too when runs is set: they read every snapshot, so a list of another
+	// noun does not pay for them.
+	load := func(runs bool) (map[string][]Row, error) {
+		if cache != nil && (runsRead || !runs) {
 			return cache, nil
 		}
-		rows, err := t.inventoryRows()
-		if err != nil {
-			return nil, err
+		rows := cache
+		if rows == nil {
+			var err error
+			if rows, err = t.inventoryRows(); err != nil {
+				return nil, err
+			}
+		}
+		if runs {
+			var err error
+			if rows["run"], err = t.runRows(); err != nil {
+				return nil, err
+			}
+			runsRead = true
 		}
 		for _, noun := range rowNouns {
 			items := make([]ochazuke.ListItem, len(rows[noun]))
@@ -175,7 +193,7 @@ func (t *Tool) shell() *ocli.Shell {
 		return rows, nil
 	}
 	listed := func(noun string) ochazuke.Result {
-		rows, err := load()
+		rows, err := load(noun == "run")
 		if err != nil {
 			return ochazuke.Failed(err)
 		}
@@ -195,7 +213,7 @@ func (t *Tool) shell() *ocli.Shell {
 		if entry == "" {
 			return ochazuke.Failed(fmt.Errorf("%s show needs ENTRY (an id or label from %s list) or --target ID", noun, noun))
 		}
-		rows, err := load()
+		rows, err := load(noun == "run")
 		if err != nil {
 			return ochazuke.Failed(err)
 		}
@@ -211,9 +229,12 @@ func (t *Tool) shell() *ocli.Shell {
 		return ochazuke.Done(matches[0])
 	}
 	for _, noun := range rowNouns {
+		listDesc := "the latest snapshot's " + noun + " rows: {id, label, data: the row, cells}"
+		if noun == "run" {
+			listDesc = "the snapshots written, newest first: {id, label, data: {stamp, time, rows, changes, added, changed, removed}, cells}"
+		}
 		r.Define(noun).
-			Verb("list", func(ochazuke.Ctx) ochazuke.Result { return listed(noun) },
-				"the latest snapshot's "+noun+" rows: {id, label, data: the row, cells}").Rows(noun).
+			Verb("list", func(ochazuke.Ctx) ochazuke.Result { return listed(noun) }, listDesc).Rows(noun).
 			Verb("show", func(c ochazuke.Ctx) ochazuke.Result { return show(noun, c) },
 				"one "+noun+" row: ENTRY (an id or label) or --target ID").Positional("entry")
 		op := r.Operations[noun+".show"]
@@ -226,7 +247,7 @@ func (t *Tool) shell() *ocli.Shell {
 	}
 	r.Define("inventory").
 		Verb("state", func(ochazuke.Ctx) ochazuke.Result {
-			rows, err := load()
+			rows, err := load(true)
 			if err != nil {
 				return ochazuke.Failed(err)
 			}
@@ -294,10 +315,10 @@ func (t *Tool) shell() *ocli.Shell {
 	sh.Usage = ocli.DefaultUsage(t.Prog)
 	sh.Version = Version
 	sh.Reveal = func(target string) error {
-		if _, err := load(); err != nil {
+		kind, _, ok := strings.Cut(target, ":")
+		if _, err := load(kind == "run"); err != nil {
 			return err
 		}
-		kind, _, ok := strings.Cut(target, ":")
 		if !ok || lists[kind] == nil {
 			return errors.New("not a row id (KIND:PATH from a list): " + target)
 		}
