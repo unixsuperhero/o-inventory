@@ -30,6 +30,9 @@ type ListRow struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
 	Data  Row    `json:"data"`
+	// Cells are the row's table cells, one per column its noun declares
+	// (table.go).
+	Cells []string `json:"cells,omitempty"`
 }
 
 // label is how a list shows a row.
@@ -162,7 +165,7 @@ func (t *Tool) shell() *ocli.Shell {
 		for _, noun := range rowNouns {
 			items := make([]ochazuke.ListItem, len(rows[noun]))
 			for i, row := range rows[noun] {
-				items[i] = ochazuke.ListItem{ID: row.ID(), Label: label(row), Noun: noun, Data: row}
+				items[i] = ochazuke.ListItem{ID: row.ID(), Label: label(row), Noun: noun, Data: row, Cells: cellsOf(noun, row)}
 			}
 			if err := lists[noun].SetItems(items); err != nil {
 				return nil, err
@@ -178,7 +181,7 @@ func (t *Tool) shell() *ocli.Shell {
 		}
 		out := make([]ListRow, len(rows[noun]))
 		for i, row := range rows[noun] {
-			out[i] = ListRow{ID: row.ID(), Label: label(row), Data: row}
+			out[i] = ListRow{ID: row.ID(), Label: label(row), Data: row, Cells: cellsOf(noun, row)}
 		}
 		return ochazuke.Done(out)
 	}
@@ -210,12 +213,16 @@ func (t *Tool) shell() *ocli.Shell {
 	for _, noun := range rowNouns {
 		r.Define(noun).
 			Verb("list", func(ochazuke.Ctx) ochazuke.Result { return listed(noun) },
-				"the latest snapshot's "+noun+" rows: {id, label, data: the row}").Rows(noun).
+				"the latest snapshot's "+noun+" rows: {id, label, data: the row, cells}").Rows(noun).
 			Verb("show", func(c ochazuke.Ctx) ochazuke.Result { return show(noun, c) },
 				"one "+noun+" row: ENTRY (an id or label) or --target ID").Positional("entry")
 		op := r.Operations[noun+".show"]
 		op.Parameters = map[string]ochazuke.Parameter{"entry": {Type: "string", Description: "an id (" + noun + ":...) or label from " + noun + " list"}}
 		r.Operations[noun+".show"] = op
+		if tb, ok := tables[noun]; ok { // the catalog's columns, and the list drawn as a table
+			r.Define(noun).Columns(tb.columns...)
+			lists[noun].SetColumns(tb.columns...)
+		}
 	}
 	r.Define("inventory").
 		Verb("state", func(ochazuke.Ctx) ochazuke.Result {
@@ -226,11 +233,11 @@ func (t *Tool) shell() *ocli.Shell {
 			var out ocli.Lines
 			for _, noun := range rowNouns {
 				for _, row := range rows[noun] {
-					out = append(out, ocli.Row{Noun: noun, ID: row.ID(), Label: label(row)})
+					out = append(out, ocli.Row{Noun: noun, ID: row.ID(), Label: label(row), Cells: cellsOf(noun, row)})
 				}
 			}
 			return ochazuke.Done(out)
-		}, "every list's rows in one answer, JSON Lines {noun, id, label} for "+strings.Join(rowNouns, ", ")+" (the catalog's state)").State().
+		}, "every list's rows in one answer, JSON Lines {noun, id, label, cells} for "+strings.Join(rowNouns, ", ")+" (the catalog's state)").State().
 		Verb("overview", func(c ochazuke.Ctx) ochazuke.Result {
 			ov, err := t.Overview()
 			if err != nil {

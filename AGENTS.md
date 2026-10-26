@@ -23,6 +23,7 @@ Family plans, todos and the roadmap live in `~/hub/o-plans/` (`README.md` is the
 | `overview`: the latest snapshot as one tree (text, `--json`) | `overview.go` |
 | Post-commit hook; the daily launchd job (plist, wrapper, install/uninstall/status/run via launchctl) | `hook.go`, `daily.go` |
 | The runtime: row nouns, list/show, `inventory state` | `shell.go` |
+| Table columns per row noun (the catalog's columns) and each row's cells | `table.go` |
 
 ## Invariants
 
@@ -31,5 +32,6 @@ Family plans, todos and the roadmap live in `~/hub/o-plans/` (`README.md` is the
 - A snapshot is written only when a compared field differs from `latest.jsonl`; ignored fields (registeredAt, binMtime, descriptions) never make one.
 - Changelog lines start with `added:`/`changed:`/`removed:`/`fixed:`/`shadow:` (a claim an `o` command newly shadows); a `changed:` line has `; was`; `fixed:` only from `fix:` commit subjects. `TestChangelogEntryGrammarAndRepoFiles` pins it.
 - Framework nouns (no application verb, cli.Mount's rule) are recorded once under `ochazuke`.
+- Every list noun declares columns (`table.go`) and every row it lists carries one cell per column: in its list and in the state (`TestEveryRowCarriesItsCells`).
 - Every list verb declares `.Rows(noun)`; no key bindings here; never bind function keys.
 - Every commit: `gofmt -l . && go vet ./... && go test -race ./...` green, `go run . catalog` answers, `o proj check`.
