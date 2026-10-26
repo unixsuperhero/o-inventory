@@ -376,7 +376,8 @@ func (t *Tool) Collect(ctx context.Context) Collection {
 		if err != nil {
 			warn("o-story state: %v", err)
 		}
-		storyRows(out, add)
+		skip := func(id string) (string, error) { return t.storySkip(ctx, bins["o-story"], id) }
+		storyRows(out, skip, add, warn)
 	}
 	return c
 }
@@ -482,8 +483,12 @@ func requestKey(q ochazuke.Request) string {
 	return q.Noun + "." + q.Verb
 }
 
-// storyRows are o-story's state lines tagged story or edge.
-func storyRows(out []byte, add func(Row) bool) {
+// storyRows are o-story's state lines tagged story or edge. A story row is
+// {area, name, file, skip}: file is the story's file under o-story's
+// stories directory (its id is AREA/STEM, the file's area directory and
+// name), skip its "gap: ..." reason; the state line says only whether it
+// is skipped, so a skipped story's reason is read with skip (story show).
+func storyRows(out []byte, skip func(id string) (string, error), add func(Row) bool, warn func(string, ...any)) {
 	sc := bufio.NewScanner(bytes.NewReader(out))
 	sc.Buffer(make([]byte, 1<<20), 16<<20)
 	for sc.Scan() {
@@ -494,13 +499,41 @@ func storyRows(out []byte, add func(Row) bool) {
 		path := strings.TrimPrefix(line.ID, line.Noun+"/")
 		row := newRow(line.Noun, path)
 		row.set("label", line.Label)
-		if data, ok := line.Data.(map[string]any); ok {
-			for _, k := range []string{"skip", "area", "page", "from", "to", "via"} {
-				row.set(k, data[k])
+		data, _ := line.Data.(map[string]any)
+		for _, k := range []string{"skip", "area", "page", "from", "to", "via", "file"} {
+			row.set(k, data[k])
+		}
+		if line.Noun == "story" {
+			row.set("name", line.Label)
+			if row.Str("file") == "" {
+				row["file"] = "stories/" + path + ".json"
+			}
+			if data["skipped"] == true && row.Str("skip") == "" {
+				reason, err := skip(line.ID)
+				if err != nil || reason == "" {
+					warn("o-story story %s is skipped, reason unread: %v", line.ID, err)
+					reason = "skipped"
+				}
+				row["skip"] = reason
 			}
 		}
 		add(row)
 	}
+}
+
+// storySkip is a story's skip reason, from o-story story show --target ID.
+func (t *Tool) storySkip(ctx context.Context, bin, id string) (string, error) {
+	out, err := t.run(ctx, bin, "story", "show", "--target", id)
+	if err != nil {
+		return "", err
+	}
+	var s struct {
+		Skip string `json:"skip"`
+	}
+	if err := json.Unmarshal(out, &s); err != nil {
+		return "", fmt.Errorf("story show: %w", err)
+	}
+	return s.Skip, nil
 }
 
 // sortedBindings are bindings in the order of their JSON: a catalog's rows

@@ -405,6 +405,15 @@ func (v *view) addedText(r Row) string {
 		return s
 	case "binding":
 		return v.thing(r) + ", `" + r.Str("request") + "`"
+	case "story":
+		s := v.thing(r)
+		if r.Str("name") != "" {
+			s += " " + val(r["name"])
+		}
+		if r.Str("skip") != "" {
+			s += fmt.Sprintf(", skipped %q", r.Str("skip"))
+		}
+		return s
 	case "page":
 		return v.thing(r) + ", title " + val(r["title"])
 	case "host":
