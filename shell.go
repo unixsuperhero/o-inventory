@@ -234,9 +234,9 @@ func (t *Tool) shell() *ocli.Shell {
 			listDesc = "the snapshots written, newest first: {id, label, data: {stamp, time, rows, changes, added, changed, removed}, cells}"
 		}
 		r.Define(noun).
-			Verb("list", func(ochazuke.Ctx) ochazuke.Result { return listed(noun) }, listDesc).Rows(noun).
+			Verb("list", func(ochazuke.Ctx) ochazuke.Result { return listed(noun) }, listDesc).Rows(noun).Fetch().
 			Verb("show", func(c ochazuke.Ctx) ochazuke.Result { return show(noun, c) },
-				"one "+noun+" row: ENTRY (an id or label) or --target ID").Positional("entry")
+				"one "+noun+" row: ENTRY (an id or label) or --target ID").Positional("entry").Fetch()
 		op := r.Operations[noun+".show"]
 		op.Parameters = map[string]ochazuke.Parameter{"entry": {Type: "string", Description: "an id (" + noun + ":...) or label from " + noun + " list"}}
 		r.Operations[noun+".show"] = op
@@ -258,7 +258,7 @@ func (t *Tool) shell() *ocli.Shell {
 				}
 			}
 			return ochazuke.Done(out)
-		}, "every list's rows in one answer, JSON Lines {noun, id, label, cells} for "+strings.Join(rowNouns, ", ")+" (the catalog's state)").State().
+		}, "every list's rows in one answer, JSON Lines {noun, id, label, cells} for "+strings.Join(rowNouns, ", ")+" (the catalog's state)").State().Fetch().
 		Verb("overview", func(c ochazuke.Ctx) ochazuke.Result {
 			ov, err := t.Overview()
 			if err != nil {
@@ -272,7 +272,7 @@ func (t *Tool) shell() *ocli.Shell {
 				out = append(out, line)
 			}
 			return ochazuke.Done(out)
-		}, "the latest snapshot as one tree: libs, root, tools, hosts, projects (--json: the tree as data)")
+		}, "the latest snapshot as one tree: libs, root, tools, hosts, projects (--json: the tree as data)").Fetch()
 	{
 		op := r.Operations["inventory.overview"]
 		op.Parameters = map[string]ochazuke.Parameter{"json": {Type: "boolean", Description: "the tree as data instead of text lines"}}
@@ -294,6 +294,7 @@ func (t *Tool) shell() *ocli.Shell {
 			}
 			return ochazuke.Done(out)
 		}, v.Summary)
+		setHistory(r, v.History, "daily."+verb)
 	}
 	timeParams := map[string]ochazuke.Parameter{
 		"hour":   {Type: "integer", Description: "the hour the job runs, local time (default 9)"},
@@ -325,4 +326,22 @@ func (t *Tool) shell() *ocli.Shell {
 		return nil
 	}
 	return sh
+}
+
+// setHistory declares the history kind (Operation.HistoryKind) of each
+// named verb, so none is left to the default: NounBuilder.Fetch marks a
+// read where it is declared, and the builder has no method for a change. An
+// unknown key or kind panics.
+func setHistory(r *ochazuke.Runtime, kind string, keys ...string) {
+	if kind == "" {
+		panic("setHistory: no kind")
+	}
+	for _, key := range keys {
+		op, ok := r.Operations[key]
+		if !ok {
+			panic("setHistory: no operation " + key)
+		}
+		op.HistoryKind = kind
+		r.Operations[key] = op
+	}
 }
