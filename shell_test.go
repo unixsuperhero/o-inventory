@@ -90,6 +90,8 @@ func TestCatalogAnswersAndBindingsValidate(t *testing.T) {
 func TestNounsListShowAndStateFromTheLatestSnapshot(t *testing.T) {
 	f := newFixture(t)
 	f.libs()
+	f.storyTool(storyState, map[string]string{"chrome/wide": `{"skip":"gap: the footer cuts at 80"}`})
+	f.mtmTool(mtmCatalog(true), storeTables("1"))
 	f.mustRun("snapshot")
 	f.tool("o-alpha", alphaCatalog("grep"))
 	f.clock = f.clock.Add(60e9)
@@ -99,7 +101,7 @@ func TestNounsListShowAndStateFromTheLatestSnapshot(t *testing.T) {
 	if err := json.Unmarshal([]byte(f.mustRun("tool", "list")), &tools); err != nil {
 		t.Fatal(err)
 	}
-	if len(tools) != 2 || tools[0].ID != "tool:o-alpha" || tools[0].Label != "o-alpha 0.1.0" || tools[0].Data.Str("bin") != "~/bin/o-alpha" {
+	if len(tools) != 4 || tools[1].ID != "tool:o-alpha" || tools[1].Label != "o-alpha 0.1.0" || tools[1].Data.Str("bin") != "~/bin/o-alpha" { // mtm, o-alpha, o-proj, o-story
 		t.Fatalf("tools %+v", tools)
 	}
 	var row Row
@@ -108,6 +110,13 @@ func TestNounsListShowAndStateFromTheLatestSnapshot(t *testing.T) {
 	}
 	if err := json.Unmarshal([]byte(f.mustRun("binding", "show", "q in ochazuke normal → app.quit")), &row); err != nil || row.ID() != "binding:ochazuke/normal/app/q" {
 		t.Fatalf("show by label: %v %v", err, row)
+	}
+	if err := json.Unmarshal([]byte(f.mustRun("story", "show", "chrome/wide")), &row); err != nil || row.Str("skip") != "gap: the footer cuts at 80" {
+		t.Fatalf("story show: %v %v", err, row)
+	}
+	var tables []ListRow
+	if err := json.Unmarshal([]byte(f.mustRun("table", "list")), &tables); err != nil || len(tables) != 2 || tables[0].Label != "mtm history (history, key seq, v1, append-only)" {
+		t.Fatalf("table list: %v %+v", err, tables)
 	}
 	var changes []ListRow
 	if err := json.Unmarshal([]byte(f.mustRun("change", "list")), &changes); err != nil {

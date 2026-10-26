@@ -23,7 +23,7 @@ import (
 const Version = "0.1.0"
 
 // rowNouns are the row kinds the runtime lists.
-var rowNouns = []string{"lib", "dep", "tool", "noun", "verb", "binding", "page", "host", "project", "change"}
+var rowNouns = []string{"lib", "dep", "tool", "noun", "verb", "binding", "page", "host", "project", "story", "edge", "table", "change"}
 
 // ListRow is one element of a list.
 type ListRow struct {
@@ -92,6 +92,20 @@ func label(r Row) string {
 			s += " (" + o + ")"
 		}
 		return strings.TrimSpace(s + " " + r.Str("path"))
+	case "story":
+		s := strings.TrimPrefix(r.ID(), "story:") + ": " + r.Str("name")
+		if skip := r.Str("skip"); skip != "" {
+			s += " (skipped: " + skip + ")"
+		}
+		return s
+	case "edge":
+		return r.Str("from") + " → " + r.Str("to") + " via " + r.Str("via")
+	case "table":
+		s := r.Str("tool") + " " + r.Str("name") + " (" + r.Str("owner") + ", key " + r.Str("key") + ", v" + canon(r["version"])
+		if r["appendOnly"] == true {
+			s += ", append-only"
+		}
+		return s + ")"
 	case "change":
 		if l := r.Str("line"); l != "" {
 			return l

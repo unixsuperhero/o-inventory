@@ -13,6 +13,7 @@ o inv hook install [REPO|--all]         # post-commit hook in family repos
 o inv daily plist|install|uninstall|status|run   # the launchd job (below)
 o inv repos                             # o proj's manifest (~/hub/repos.json) merged with ~/.config/o-inventory/repos.json
 o inv tool list | o inv verb show --target verb:o-ai/skill.list | o inv state
+o inv story list | o inv edge list | o inv table list   # also lib, dep, noun, binding, page, host, project, change
 ```
 
 Runtime nouns use shared ochazuke metadata and oden contextual help: `o inv tool`, `o inv tool --help`, and `o inv help tool` list the noun's verbs without running them; `o inv tool show --help` describes its arguments. Unknown verbs list the available children. `o inv state` remains the shortcut for `o inv inventory state`.
