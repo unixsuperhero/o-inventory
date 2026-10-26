@@ -12,7 +12,7 @@ Family plans, todos and the roadmap live in `~/hub/o-plans/` (`README.md` is the
 |---|---|
 | `Tool`, `main`, the oden app, `mount`, paths (hub, registry, config) | `main.go` |
 | Operations (snapshot, diff, changelog, check, hook, daily, repos) and their flag parsing | `commands.go` |
-| Collection: PATH tools, `BIN catalog`, framework and mounted nouns, nabe hosts, projects, o-story state | `collect.go` |
+| Collection: PATH tools, `BIN catalog`, framework and mounted nouns, nabe hosts, projects, o-story state (stories, mode edges), mtm store tables | `collect.go` |
 | Row type, JSON Lines read/write | `rows.go` |
 | Snapshot files, lock, hub commits | `snapshot.go` |
 | Detection rules (`compared`), `Diff`, change rows | `diff.go` |

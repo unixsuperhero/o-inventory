@@ -232,8 +232,9 @@ type Collection struct {
 
 // Collect reads every source into rows (not yet sorted): tools on PATH and
 // their catalogs, o's roster (reachable, shadow rows), the libraries and
-// their consumers (lib, dep rows), nabe's registry, o-proj's projects and the hub links, and
-// o-story's stories and mode edges when it answers a catalog with a state.
+// their consumers (lib, dep rows), nabe's registry, o-proj's projects and the hub links,
+// o-story's stories and mode edges when it answers a catalog with a state,
+// and mtm's store tables when its catalog has store tables.
 func (t *Tool) Collect(ctx context.Context) Collection {
 	c := Collection{Catalogs: map[string]*ocli.CatalogDoc{}}
 	warn := func(format string, args ...any) { c.Warnings = append(c.Warnings, fmt.Sprintf(format, args...)) }
@@ -379,7 +380,75 @@ func (t *Tool) Collect(ctx context.Context) Collection {
 		skip := func(id string) (string, error) { return t.storySkip(ctx, bins["o-story"], id) }
 		storyRows(out, skip, add, warn)
 	}
+
+	// Store tables are mtm's read-only store tables answer, asked only
+	// when its catalog has the verb (an mtm built before matomeru 9c0e73b
+	// has none, and is skipped with a note).
+	if doc := docs["mtm"]; doc != nil {
+		if !hasVerb(doc, "store", "tables") {
+			warn("mtm has no store tables verb (built before matomeru 9c0e73b; reinstall mtm): table rows skipped")
+		} else if out, err := t.run(ctx, bins["mtm"], "store", "tables"); err != nil {
+			warn("mtm store tables: %v", err)
+		} else if err := tableRows("mtm", out, add); err != nil {
+			warn("mtm store tables: %v", err)
+		}
+	}
 	return c
+}
+
+// hasVerb reports whether doc has noun's verb.
+func hasVerb(doc *ocli.CatalogDoc, noun, verb string) bool {
+	for _, n := range doc.Nouns {
+		if n.Name != noun {
+			continue
+		}
+		for _, v := range n.Verbs {
+			if v.Name == verb {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// tableRows are a store tables answer's store-table rows (a JSON array of
+// rows, or JSON Lines) as table rows, id table:NAME: {tool, name, owner,
+// key, version, appendOnly}. The row count is not recorded: it changes
+// with every write, and no snapshot should.
+func tableRows(tool string, out []byte, add func(Row) bool) error {
+	var lines []ocli.Row
+	if err := json.Unmarshal(out, &lines); err != nil {
+		lines = nil
+		sc := bufio.NewScanner(bytes.NewReader(out))
+		sc.Buffer(make([]byte, 1<<20), 16<<20)
+		for sc.Scan() {
+			var line ocli.Row
+			if json.Unmarshal(sc.Bytes(), &line) == nil {
+				lines = append(lines, line)
+			}
+		}
+		if len(lines) == 0 && len(bytes.TrimSpace(out)) > 0 {
+			return fmt.Errorf("not store-table rows: %w", err)
+		}
+	}
+	for _, line := range lines {
+		if line.Noun != "store-table" {
+			continue
+		}
+		data, _ := line.Data.(map[string]any)
+		name, _ := data["name"].(string)
+		if name == "" {
+			name = line.ID
+		}
+		row := newRow("table", name)
+		row["tool"], row["name"] = tool, name
+		row.set("owner", data["owner"]).set("key", data["key"]).set("appendOnly", data["append_only"])
+		if v, ok := data["version"].(float64); ok {
+			row["version"] = int(v)
+		}
+		add(row)
+	}
+	return nil
 }
 
 // catalogRows are a catalog's noun, verb, param, binding and page rows.

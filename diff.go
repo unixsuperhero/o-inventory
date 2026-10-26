@@ -26,7 +26,7 @@ var compared = map[string][]string{
 	"project": {"origin", "hubLink", "status", "path", "registered"},
 	"story":   {"skip"},
 	"edge":    {},
-	"table":   {"version", "owner"},
+	"table":   {"version", "owner", "key", "appendOnly"},
 }
 
 // neverCompared are ignored even by diff --all: they change on every

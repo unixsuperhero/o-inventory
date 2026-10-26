@@ -414,6 +414,12 @@ func (v *view) addedText(r Row) string {
 			s += fmt.Sprintf(", skipped %q", r.Str("skip"))
 		}
 		return s
+	case "table":
+		s := v.thing(r) + " in " + r.Str("tool") + ", owner " + val(r["owner"]) + ", key " + val(r["key"]) + ", version " + val(r["version"])
+		if r["appendOnly"] == true {
+			s += ", append-only"
+		}
+		return s
 	case "page":
 		return v.thing(r) + ", title " + val(r["title"])
 	case "host":
