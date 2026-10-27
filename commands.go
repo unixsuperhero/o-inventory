@@ -119,6 +119,9 @@ func (t *Tool) commands() []oden.Command {
 		{Name: "hook", Summary: "hook install [REPO|--all]: the post-commit hook that snapshots after a commit touching *.go, go.mod, stories/ or a catalog golden (idempotent; appends to an existing hook)", Run: func(ctx context.Context, args []string) error {
 			return t.HookCommand(args)
 		}},
+		{Name: "errors", Summary: "errors [--jsonl PATH] [--md PATH] ROOT [PATTERN...]: every error site of a Go module (errors.New, fmt.Errorf, sentinels, Failed, error-like Status/Notify, panics) with its function, verb, conditions and a heuristic class; Markdown on stdout unless --md", Run: func(ctx context.Context, args []string) error {
+			return t.ErrorsCommand(args)
+		}},
 		{Name: "daily", Summary: "daily plist|install|uninstall|status|run: the launchd job (" + DailyLabel + ", 09:00 local) that snapshots and writes the changelogs; install bootstraps it in gui/UID", Run: func(ctx context.Context, args []string) error {
 			return t.DailyCommand(ctx, args)
 		}},

@@ -12,6 +12,7 @@
 //	o-inventory hook install [REPO|--all]          the post-commit hook
 //	o-inventory daily plist|install|uninstall|status|run   the launchd job
 //	o-inventory repos                              the family repos (repos.json)
+//	o-inventory errors [--jsonl P] [--md P] ROOT [PATTERN...]   a module's error sites
 //	o-inventory NOUN list|show                     rows of the latest snapshot
 //	o-inventory state                              every noun's rows, JSON Lines
 //	o-inventory catalog                            the nouns and verbs, for a host (nabe)

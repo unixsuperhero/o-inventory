@@ -11,6 +11,7 @@ o inv check                             # drift (stale-build, unreachable, ...);
 o inv overview [--json]                 # the latest snapshot as one tree: libs, root, tools, hosts, projects
 o inv hook install [REPO|--all]         # post-commit hook in family repos
 o inv daily plist|install|uninstall|status|run   # the launchd job (below)
+o inv errors [--md P] [--jsonl P] ROOT [PATTERN...]  # a Go module's error sites (Markdown on stdout unless --md)
 o inv repos                             # o proj's manifest (~/hub/repos.json) merged with ~/.config/o-inventory/repos.json
 o inv tool list | o inv verb show --target verb:o-ai/skill.list | o inv state
 o inv story list | o inv edge list | o inv table list   # also lib, dep, noun, binding, page, host, project, change

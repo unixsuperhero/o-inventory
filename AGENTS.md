@@ -25,6 +25,7 @@ Family plans, todos and the roadmap live in `~/hub/o-plans/` (`README.md` is the
 | The runtime: row nouns, list/show, `inventory state` | `shell.go` |
 | Run rows: one per snapshot written, its row and diff counts (`run list`, read only when asked) | `runs.go` |
 | Table columns per row noun (the catalog's columns) and each row's cells | `table.go` |
+| `errors`: a Go module's error sites (go/ast + go/types with stand-in imports; verbs resolved from `Define(noun).Verb`, `Operation{Noun, Verb, Run}` literals, registrar closures and ranged tables; heuristic classes; JSON Lines + Markdown, sorted); fixture module `testdata/errmap` | `errmap.go` |
 
 ## Invariants
 
