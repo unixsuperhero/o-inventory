@@ -372,7 +372,7 @@ func (t *Tool) Collect(ctx context.Context) Collection {
 	}
 
 	if doc := docs["o-story"]; doc != nil && doc.State != "" {
-		noun, verb, _ := strings.Cut(doc.State, ".")
+		noun, verb := ochazuke.SplitKey(doc.State)
 		out, err := t.run(ctx, bins["o-story"], noun, verb)
 		if err != nil {
 			warn("o-story state: %v", err)

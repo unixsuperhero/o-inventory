@@ -233,7 +233,10 @@ func (t *Tool) shell() *ocli.Shell {
 		if noun == "run" {
 			listDesc = "the snapshots written, newest first: {id, label, data: {stamp, time, rows, changes, added, changed, removed}, cells}"
 		}
-		r.Define(noun).
+		// DefineOwn: the row kinds are o-inventory's own nouns, so page
+		// and binding are not the framework's app.page and app.binding
+		// (ochazuke v0.16.0), which stay reachable under app.
+		r.DefineOwn(noun).
 			Verb("list", func(ochazuke.Ctx) ochazuke.Result { return listed(noun) }, listDesc).Rows(noun).Fetch().
 			Verb("show", func(c ochazuke.Ctx) ochazuke.Result { return show(noun, c) },
 				"one "+noun+" row: ENTRY (an id or label) or --target ID").Positional("entry").Fetch()
@@ -241,7 +244,7 @@ func (t *Tool) shell() *ocli.Shell {
 		op.Parameters = map[string]ochazuke.Parameter{"entry": {Type: "string", Description: "an id (" + noun + ":...) or label from " + noun + " list"}}
 		r.Operations[noun+".show"] = op
 		if tb, ok := tables[noun]; ok { // the catalog's columns, and the list drawn as a table
-			r.Define(noun).Columns(tb.columns...)
+			r.DefineOwn(noun).Columns(tb.columns...)
 			lists[noun].SetColumns(tb.columns...)
 		}
 	}

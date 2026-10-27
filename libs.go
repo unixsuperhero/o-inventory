@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/unixsuperhero/ochazuke"
 	ocli "github.com/unixsuperhero/ochazuke/cli"
 	"github.com/unixsuperhero/oden"
 )
@@ -44,7 +46,7 @@ func (t *Tool) roster(ctx context.Context, bin string, doc *ocli.CatalogDoc, war
 	if doc == nil || doc.State == "" {
 		return nil
 	}
-	noun, verb, _ := strings.Cut(doc.State, ".")
+	noun, verb := ochazuke.SplitKey(doc.State)
 	out, err := t.run(ctx, bin, noun, verb)
 	if err != nil {
 		warn("%s state: %v", Root, err)
@@ -59,7 +61,7 @@ func (t *Tool) roster(ctx context.Context, bin string, doc *ocli.CatalogDoc, war
 			ID   string      `json:"id"`
 			Data rosterEntry `json:"data"`
 		}
-		if json.Unmarshal(sc.Bytes(), &line) != nil || line.Noun != "command" || line.ID == "" {
+		if json.Unmarshal(sc.Bytes(), &line) != nil || !isCommandNoun(doc, line.Noun) || line.ID == "" {
 			continue
 		}
 		m[line.ID] = line.Data
@@ -84,16 +86,31 @@ func markRoots(repos []Repo, docs map[string]*ocli.CatalogDoc, tools map[string]
 	}
 }
 
+// hasNoun reports whether doc has noun, an alias resolved
+// (CatalogDoc.CanonicalNoun): oden's command is app.command in an
+// ochazuke v0.16.0 catalog (cli.CommandNoun), command in a plain oden one.
 func hasNoun(doc *ocli.CatalogDoc, noun string) bool {
 	if doc == nil {
 		return false
 	}
+	names := []string{doc.CanonicalNoun(noun)}
+	if noun == oden.CommandNoun {
+		names = append(names, ocli.CommandNoun)
+	}
 	for _, n := range doc.Nouns {
-		if n.Name == noun {
+		if slices.Contains(names, n.Name) {
 			return true
 		}
 	}
 	return false
+}
+
+// isCommandNoun reports whether a state line's noun is oden's command
+// noun: command (a plain oden app, or the alias) or app.command (an
+// ochazuke v0.16.0 one, cli.CommandNoun).
+func isCommandNoun(doc *ocli.CatalogDoc, noun string) bool {
+	c := doc.CanonicalNoun(noun)
+	return c == doc.CanonicalNoun(oden.CommandNoun) || c == ocli.CommandNoun
 }
 
 // markReachable marks each tool o does not run (no o command whose
