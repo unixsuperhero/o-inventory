@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 596 112" width="596" height="112" role="img" aria-label="o-inventory">
+<title>o-inventory</title>
+<g transform="translate(-20 -16)">
+<path d="M38 50H90M64 24V76" stroke="#ff9d86" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M38 100H90" stroke="#e5533d" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<path d="M132 44a20 20 0 1 0 0.01 0M167 64h16M198 44V84M198 24h0.01M213 44V84M213 62a18 18 0 0 1 36 0V84M264 44L281 84L298 44M313 64H353A20 20 0 1 0 347.1 78.1M368 44V84M368 62a18 18 0 0 1 36 0V84M426 26V73a11 11 0 0 0 11 11h4M419 44H442M477 44a20 20 0 1 0 0.01 0M512 44V84M512 64a20 20 0 0 1 20 -20h4M551 44V66a18 18 0 0 0 36 0M587 44V95a11 11 0 0 1 -11 11h-4" fill="none" stroke="#fff0eb" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
