@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
-    <img alt="o-inventory" src="assets/logo-light.svg" width="416">
+    <img alt="o-inventory" src="assets/logo-light.svg" width="414">
   </picture>
   <br>
   <a href="go.mod"><img alt="Go version" src="https://img.shields.io/github/go-mod/go-version/unixsuperhero/o-inventory"></a>

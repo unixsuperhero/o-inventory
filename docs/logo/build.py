@@ -71,7 +71,7 @@ GLYPHS = {
     "i": (0, lambda x: f"M{f(x)} 44V84M{f(x)} 24h0.01"),
     "n": (36, lambda x: f"M{f(x)} 44V84M{f(x)} 62a18 18 0 0 1 36 0V84"),
     "v": (34, lambda x: f"M{f(x)} 44L{f(x+17)} 84L{f(x+34)} 44"),
-    "-": (18, lambda x: f"M{f(x)} 64h18"),
+    "-": (16, lambda x: f"M{f(x)} 64h16"),  # as in o-ai's logo
     # Descenders reach y 106; the hook is t's foot turned down and left.
     "p": (40, lambda x: f"M{f(x)} 44V106M{f(x+20)} 44a20 20 0 1 0 0.01 0"),
     # j is spaced like i, by its stem: its hook tucks under the letter before.
