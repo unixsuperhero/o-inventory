@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="o-inventory">
+<title>o-inventory</title>
+<rect width="128" height="128" rx="28" fill="#2a1515"/>
+<g>
+<path d="M38 50H90M64 24V76" stroke="#ff9d86" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M38 100H90" stroke="#e5533d" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</svg>
